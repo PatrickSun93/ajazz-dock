@@ -1,0 +1,65 @@
+{
+  // VS Code reads this $schema and gives you autocomplete + validation
+  // for every key, action type, and field below.
+  "$schema": "./settings.schema.json",
+
+  // LCD brightness, 0..100.
+  "brightness": 80,
+
+  // Key layout (column-major from bottom-left, so the LCD numbers match
+  // physical position when the dock sits upright):
+  //
+  //     col1  col2  col3
+  //      13    14    15   <- row 1 (top)
+  //      10    11    12
+  //       7     8     9
+  //       4     5     6
+  //       1     2     3   <- row 5 (bottom)
+  //
+  // Each binding: { "image": "...", "action": { "type": "...", ... } }
+  // - image is optional; omit it to leave the LCD dark.
+  // - action is optional; omit it to make the key a no-op.
+  //
+  // Action types:
+  //   url    { type: "url",   target: "https://..." }
+  //   app    { type: "app",   target: "C:\\path\\app.exe", args: ["..."] }
+  //   keys   { type: "keys",  target: "ctrl+shift+f" }
+  //   text   { type: "text",  target: "hello" }
+  //   shell  { type: "shell", target: "cmd /c echo hi" }
+  //   macro  { type: "macro", steps: [ { ...action }, { delay: 0.5 }, ... ] }
+  //
+  // Save the file — dock.py picks up the change automatically.
+  "keys": {
+    "1": {
+      "image": "icons/github.png",
+      "action": { "type": "url", "target": "https://github.com" }
+    },
+    "2": {
+      "image": "icons/notepad.jpg",
+      "action": { "type": "app", "target": "C:\\Windows\\System32\\notepad.exe" }
+    },
+    "13": {
+      "image": "icons/claude.png",
+      "action": { "type": "url", "target": "https://claude.ai" }
+    },
+    "15": {
+      "image": "icons/lock.jpg",
+      "action": { "type": "shell", "target": "rundll32.exe user32.dll,LockWorkStation" }
+    },
+
+    // Keys without icons — LCD stays dark, presses still fire the action.
+    "6":  { "action": { "type": "keys", "target": "ctrl+c" } },
+    "9":  { "action": { "type": "text", "target": "hello from dock" } },
+    "12": {
+      "action": {
+        "type": "macro",
+        "steps": [
+          { "type": "app",  "target": "notepad.exe" },
+          { "delay": 0.6 },
+          { "type": "text", "target": "macro fired" },
+          { "type": "keys", "target": "enter" }
+        ]
+      }
+    }
+  }
+}

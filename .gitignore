@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.env
+
+# Runtime / local
+dock.log
+dock_out.txt
+dock_err.txt
+start-dock.bat
+
+# IDE
+.vscode/
+.idea/

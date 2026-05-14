@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/peido/ajazz-dock/settings.schema.json",
+  "title": "Ajazz AKP153E dock settings",
+  "description": "Per-key icon and action bindings for the 15-key dock.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "brightness": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "LCD brightness percentage (0-100)."
+    },
+    "keys": {
+      "type": "object",
+      "description": "Map of key id (1..15, column-major from bottom-left) to binding.",
+      "propertyNames": {
+        "pattern": "^([1-9]|1[0-5])$",
+        "description": "Key id 1..15"
+      },
+      "additionalProperties": { "$ref": "#/definitions/Binding" }
+    }
+  },
+  "definitions": {
+    "Binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Path to PNG/JPG. Auto-resized to 95x95 and rotated 90°."
+        },
+        "action": { "$ref": "#/definitions/Action" }
+      }
+    },
+    "Action": {
+      "oneOf": [
+        { "$ref": "#/definitions/ActionUrl" },
+        { "$ref": "#/definitions/ActionApp" },
+        { "$ref": "#/definitions/ActionKeys" },
+        { "$ref": "#/definitions/ActionText" },
+        { "$ref": "#/definitions/ActionShell" },
+        { "$ref": "#/definitions/ActionMacro" }
+      ]
+    },
+    "ActionUrl": {
+      "type": "object",
+      "required": ["type", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "url" },
+        "target": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to open in the default browser."
+        }
+      }
+    },
+    "ActionApp": {
+      "type": "object",
+      "required": ["type", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "app" },
+        "target": {
+          "type": "string",
+          "description": "Full path to an executable, or its name if on PATH."
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Extra command-line arguments."
+        }
+      }
+    },
+    "ActionKeys": {
+      "type": "object",
+      "required": ["type", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "keys" },
+        "target": {
+          "type": "string",
+          "description": "Hotkey combo, e.g. 'ctrl+shift+f' or 'win+l'."
+        }
+      }
+    },
+    "ActionText": {
+      "type": "object",
+      "required": ["type", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "text" },
+        "target": {
+          "type": "string",
+          "description": "Literal text to type at the cursor."
+        }
+      }
+    },
+    "ActionShell": {
+      "type": "object",
+      "required": ["type", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "shell" },
+        "target": {
+          "type": "string",
+          "description": "Shell command line (runs via cmd.exe on Windows)."
+        }
+      }
+    },
+    "ActionMacro": {
+      "type": "object",
+      "required": ["type", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "macro" },
+        "steps": {
+          "type": "array",
+          "description": "Sequence of steps. Each step is either a regular action or {delay: seconds}.",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["delay"],
+                "additionalProperties": false,
+                "properties": {
+                  "delay": { "type": "number", "minimum": 0 }
+                }
+              },
+              { "$ref": "#/definitions/ActionUrl" },
+              { "$ref": "#/definitions/ActionApp" },
+              { "$ref": "#/definitions/ActionKeys" },
+              { "$ref": "#/definitions/ActionText" },
+              { "$ref": "#/definitions/ActionShell" }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
