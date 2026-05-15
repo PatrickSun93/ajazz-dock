@@ -28,38 +28,119 @@
   //   shell  { type: "shell", target: "cmd /c echo hi" }
   //   macro  { type: "macro", steps: [ { ...action }, { delay: 0.5 }, ... ] }
   //
-  // Save the file — dock.py picks up the change automatically.
+  // Save the file — the runner picks up the change automatically.
   "keys": {
-    "1": {
-      "image": "icons/github.png",
-      "action": { "type": "url", "target": "https://github.com" }
-    },
-    "2": {
-      "image": "icons/notepad.jpg",
-      "action": { "type": "app", "target": "C:\\Windows\\System32\\notepad.exe" }
-    },
+    // ---- row 1 (top): AI / IDE -------------------------------------
     "13": {
+      // Antigravity — Google's AI IDE.
+      "image": "icons/antigravity.png",
+      "action": {
+        "type": "app",
+        "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\Antigravity\\Antigravity.exe"
+      }
+    },
+    "14": {
+      // Claude Code — opens Windows Terminal in D:\devitems and runs
+      // `claude --dangerously-skip-permissions`. pwsh -NoExit keeps the
+      // window open after the session ends.
       "image": "icons/claude.png",
-      "action": { "type": "url", "target": "https://claude.ai" }
+      "action": {
+        "type": "app",
+        "target": "C:\\Users\\peido\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe",
+        "args": [
+          "-d", "D:\\devitems",
+          "pwsh", "-NoExit", "-Command", "claude --dangerously-skip-permissions"
+        ]
+      }
     },
     "15": {
+      // Lock the workstation.
       "image": "icons/lock.jpg",
       "action": { "type": "shell", "target": "rundll32.exe user32.dll,LockWorkStation" }
     },
 
-    // Keys without icons — LCD stays dark, presses still fire the action.
-    "6":  { "action": { "type": "keys", "target": "ctrl+c" } },
-    "9":  { "action": { "type": "text", "target": "hello from dock" } },
-    "12": {
+    // ---- row 2: terminal / editors ---------------------------------
+    "10": {
+      // Plain Windows Terminal.
+      "image": "icons/terminal.png",
       "action": {
-        "type": "macro",
-        "steps": [
-          { "type": "app",  "target": "notepad.exe" },
-          { "delay": 0.6 },
-          { "type": "text", "target": "macro fired" },
-          { "type": "keys", "target": "enter" }
-        ]
+        "type": "app",
+        "target": "C:\\Users\\peido\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe"
       }
+    },
+    "11": {
+      // VS Code.
+      "image": "icons/vscode.png",
+      "action": {
+        "type": "app",
+        "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+      }
+    },
+    "12": {
+      // Obsidian.
+      "image": "icons/obsidian.png",
+      "action": {
+        "type": "app",
+        "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\obsidian\\Obsidian.exe"
+      }
+    },
+
+    // ---- row 3: git / containers -----------------------------------
+    "7": {
+      "image": "icons/github.png",
+      "action": { "type": "url", "target": "https://github.com/PatrickSun93" }
+    },
+    "8": {
+      // Docker Desktop.
+      "image": "icons/docker.png",
+      "action": {
+        "type": "app",
+        "target": "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"
+      }
+    },
+    "9": {
+      // Git Bash.
+      "image": "icons/gitbash.png",
+      "action": {
+        "type": "app",
+        "target": "C:\\Program Files\\Git\\git-bash.exe"
+      }
+    },
+
+    // ---- row 4: utilities ------------------------------------------
+    "4": {
+      // Screenshot — Windows Snip & Sketch overlay.
+      "image": "icons/snip.png",
+      "action": { "type": "keys", "target": "windows+shift+s" }
+    },
+    "5": {
+      // Clipboard history.
+      "image": "icons/clipboard.png",
+      "action": { "type": "keys", "target": "windows+v" }
+    },
+    "6": {
+      // Open the dev folder in Explorer.
+      "image": "icons/explorer.png",
+      "action": { "type": "app", "target": "explorer.exe", "args": ["D:\\devitems"] }
+    },
+
+    // ---- row 5 (bottom) --------------------------------------------
+    "1": {
+      "image": "icons/notepadpp.png",
+      "action": {
+        "type": "app",
+        "target": "C:\\Program Files\\Notepad++\\notepad++.exe"
+      }
+    },
+    "2": {
+      // Task View — switch between virtual desktops.
+      "image": "icons/taskview.png",
+      "action": { "type": "keys", "target": "windows+tab" }
+    },
+    "3": {
+      // New virtual desktop.
+      "image": "icons/newdesktop.png",
+      "action": { "type": "keys", "target": "windows+ctrl+d" }
     }
   }
 }
