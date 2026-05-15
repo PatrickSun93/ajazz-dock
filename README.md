@@ -154,6 +154,7 @@ Omit `image` to leave the LCD dark. Omit `action` to make the key a no-op.
 | `text`  | `target` (literal text)         | `{ "type": "text", "target": "hello world" }`                            |
 | `shell` | `target` (shell command line)   | `{ "type": "shell", "target": "rundll32.exe user32.dll,LockWorkStation" }` |
 | `macro` | `steps` (array of actions or `{delay: N}`) | see below                                                     |
+| `page`  | `target` (`"next"`/`"prev"`/name/index)    | `{ "type": "page", "target": "next" }`                        |
 
 Macro example — open Notepad, wait, type, press Enter:
 
@@ -168,6 +169,35 @@ Macro example — open Notepad, wait, type, press Enter:
   ]
 }
 ```
+
+### Multiple pages
+
+15 keys not enough? Define `pages` and use `page` actions to switch between
+them. The runner re-pushes that page's icons on switch — paging is entirely
+host-side, no special device mode.
+
+```jsonc
+{
+  "$schema": "./settings.schema.json",
+  "brightness": 80,
+
+  // `shared` keys are merged into every page — define nav keys once here.
+  "shared": {
+    "1": { "image": "icons/prev.png", "action": { "type": "page", "target": "prev" } },
+    "3": { "image": "icons/next.png", "action": { "type": "page", "target": "next" } }
+  },
+
+  "pages": [
+    { "name": "main",  "keys": { /* ... */ } },
+    { "name": "media", "keys": { /* ... */ } }
+  ]
+}
+```
+
+- `page` target: `"next"` / `"prev"` (wrap around), a page name, or a 0-based index.
+- `shared` wins over a page's own binding on a key-id clash.
+- A config with a top-level `keys` map (no `pages`) is just a single page —
+  fully backwards compatible.
 
 ---
 

@@ -14,6 +14,31 @@
       "description": "LCD brightness percentage (0-100)."
     },
     "keys": {
+      "$ref": "#/definitions/KeyMap",
+      "description": "Single-page layout. For multiple pages use `pages` instead."
+    },
+    "shared": {
+      "$ref": "#/definitions/KeyMap",
+      "description": "Keys merged into every page (e.g. page-navigation keys). On a key-id clash, `shared` wins over the page's own binding."
+    },
+    "pages": {
+      "type": "array",
+      "description": "Ordered list of pages. A `page` action switches between them.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Page name — usable as a `page` action target."
+          },
+          "keys": { "$ref": "#/definitions/KeyMap" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "KeyMap": {
       "type": "object",
       "description": "Map of key id (1..15, column-major from bottom-left) to binding.",
       "propertyNames": {
@@ -21,9 +46,7 @@
         "description": "Key id 1..15"
       },
       "additionalProperties": { "$ref": "#/definitions/Binding" }
-    }
-  },
-  "definitions": {
+    },
     "Binding": {
       "type": "object",
       "additionalProperties": false,
@@ -42,8 +65,24 @@
         { "$ref": "#/definitions/ActionKeys" },
         { "$ref": "#/definitions/ActionText" },
         { "$ref": "#/definitions/ActionShell" },
-        { "$ref": "#/definitions/ActionMacro" }
+        { "$ref": "#/definitions/ActionMacro" },
+        { "$ref": "#/definitions/ActionPage" }
       ]
+    },
+    "ActionPage": {
+      "type": "object",
+      "required": ["type", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "page" },
+        "target": {
+          "description": "Page to switch to: \"next\"/\"prev\" (wrap around), a page name, or a 0-based index.",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        }
+      }
     },
     "ActionUrl": {
       "type": "object",

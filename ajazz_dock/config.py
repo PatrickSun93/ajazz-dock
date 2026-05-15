@@ -48,11 +48,38 @@ def load_jsonc(path: Path) -> dict:
         raise ValueError(f"{path}: invalid JSON ({e.msg} at line {e.lineno} col {e.colno})") from e
 
 
+def _int_keys(mapping: dict | None) -> dict:
+    """Coerce a {keyId: spec} map's keys to int (JSON object keys are strings)."""
+    return {int(k): v for k, v in (mapping or {}).items()}
+
+
 def _normalize(data: dict) -> dict:
-    """Coerce key ids to int and drop the $schema field."""
+    """Drop $schema and resolve the config into a uniform list of pages.
+
+    Three input shapes are accepted:
+      - `pages`: [ {name, keys}, ... ]   multi-page
+      - `keys`: {...}                     single page (legacy / simple setups)
+    A top-level `shared` map is merged into every page, so navigation keys
+    only need to be defined once. On a key-id clash, `shared` wins.
+
+    Output always has `data["pages"]` = [ {"name": str, "keys": {int: spec}} ].
+    """
     data.pop("$schema", None)
-    keys = data.get("keys") or {}
-    data["keys"] = {int(k): v for k, v in keys.items()}
+    shared = _int_keys(data.get("shared"))
+
+    raw_pages = data.get("pages")
+    if raw_pages:
+        pages = []
+        for i, page in enumerate(raw_pages):
+            keys = _int_keys(page.get("keys"))
+            pages.append({
+                "name": page.get("name") or f"page {i + 1}",
+                "keys": {**keys, **shared},
+            })
+    else:
+        pages = [{"name": "main", "keys": {**_int_keys(data.get("keys")), **shared}}]
+
+    data["pages"] = pages
     return data
 
 

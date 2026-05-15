@@ -27,120 +27,129 @@
   //   text   { type: "text",  target: "hello" }
   //   shell  { type: "shell", target: "cmd /c echo hi" }
   //   macro  { type: "macro", steps: [ { ...action }, { delay: 0.5 }, ... ] }
+  //   page   { type: "page",  target: "next" | "prev" | <name> | <index> }
   //
   // Save the file — the runner picks up the change automatically.
-  "keys": {
-    // ---- row 1 (top): AI / IDE -------------------------------------
-    "13": {
-      // Antigravity — Google's AI IDE.
-      "image": "icons/antigravity.png",
-      "action": {
-        "type": "app",
-        "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\Antigravity\\Antigravity.exe"
-      }
-    },
-    "14": {
-      // Claude Code — opens Windows Terminal in D:\devitems and runs
-      // `claude --dangerously-skip-permissions`. pwsh -NoExit keeps the
-      // window open after the session ends.
-      "image": "icons/claude.png",
-      "action": {
-        "type": "app",
-        "target": "C:\\Users\\peido\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe",
-        "args": [
-          "-d", "D:\\devitems",
-          "pwsh", "-NoExit", "-Command", "claude --dangerously-skip-permissions"
-        ]
-      }
-    },
-    "15": {
-      // Lock the workstation.
-      "image": "icons/lock.jpg",
-      "action": { "type": "shell", "target": "rundll32.exe user32.dll,LockWorkStation" }
-    },
 
-    // ---- row 2: terminal / editors ---------------------------------
-    "10": {
-      // Plain Windows Terminal.
-      "image": "icons/terminal.png",
-      "action": {
-        "type": "app",
-        "target": "C:\\Users\\peido\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe"
-      }
-    },
-    "11": {
-      // VS Code.
-      "image": "icons/vscode.png",
-      "action": {
-        "type": "app",
-        "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
-      }
-    },
-    "12": {
-      // Obsidian.
-      "image": "icons/obsidian.png",
-      "action": {
-        "type": "app",
-        "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\obsidian\\Obsidian.exe"
-      }
-    },
-
-    // ---- row 3: git / containers -----------------------------------
-    "7": {
-      "image": "icons/github.png",
-      "action": { "type": "url", "target": "https://github.com/PatrickSun93" }
-    },
-    "8": {
-      // Docker Desktop.
-      "image": "icons/docker.png",
-      "action": {
-        "type": "app",
-        "target": "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"
-      }
-    },
-    "9": {
-      // Git Bash.
-      "image": "icons/gitbash.png",
-      "action": {
-        "type": "app",
-        "target": "C:\\Program Files\\Git\\git-bash.exe"
-      }
-    },
-
-    // ---- row 4: utilities ------------------------------------------
-    "4": {
-      // Screenshot — Windows Snip & Sketch overlay.
-      "image": "icons/snip.png",
-      "action": { "type": "keys", "target": "windows+shift+s" }
-    },
-    "5": {
-      // Clipboard history.
-      "image": "icons/clipboard.png",
-      "action": { "type": "keys", "target": "windows+v" }
-    },
-    "6": {
-      // Open the dev folder in Explorer.
-      "image": "icons/explorer.png",
-      "action": { "type": "app", "target": "explorer.exe", "args": ["D:\\devitems"] }
-    },
-
-    // ---- row 5 (bottom) --------------------------------------------
+  // ---- shared: appears on EVERY page (the prev/next nav keys) ----------
+  "shared": {
     "1": {
-      "image": "icons/notepadpp.png",
-      "action": {
-        "type": "app",
-        "target": "C:\\Program Files\\Notepad++\\notepad++.exe"
-      }
-    },
-    "2": {
-      // Task View — switch between virtual desktops.
-      "image": "icons/taskview.png",
-      "action": { "type": "keys", "target": "windows+tab" }
+      "image": "icons/prev.png",
+      "action": { "type": "page", "target": "prev" }
     },
     "3": {
-      // New virtual desktop.
-      "image": "icons/newdesktop.png",
-      "action": { "type": "keys", "target": "windows+ctrl+d" }
+      "image": "icons/next.png",
+      "action": { "type": "page", "target": "next" }
     }
-  }
+  },
+
+  // ---- pages: the ◄ ► keys cycle through these (wraps around) ----------
+  "pages": [
+    {
+      "name": "main",
+      "keys": {
+        // row 1 (top): AI / IDE
+        "13": {
+          "image": "icons/antigravity.png",
+          "action": {
+            "type": "app",
+            "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\Antigravity\\Antigravity.exe"
+          }
+        },
+        "14": {
+          // Claude Code in Windows Terminal, in D:\devitems.
+          "image": "icons/claude.png",
+          "action": {
+            "type": "app",
+            "target": "C:\\Users\\peido\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe",
+            "args": [
+              "-d", "D:\\devitems",
+              "pwsh", "-NoExit", "-Command", "claude --dangerously-skip-permissions"
+            ]
+          }
+        },
+        "15": {
+          "image": "icons/lock.jpg",
+          "action": { "type": "shell", "target": "rundll32.exe user32.dll,LockWorkStation" }
+        },
+
+        // row 2: terminal / editors
+        "10": {
+          "image": "icons/terminal.png",
+          "action": {
+            "type": "app",
+            "target": "C:\\Users\\peido\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe"
+          }
+        },
+        "11": {
+          "image": "icons/vscode.png",
+          "action": {
+            "type": "app",
+            "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+          }
+        },
+        "12": {
+          "image": "icons/obsidian.png",
+          "action": {
+            "type": "app",
+            "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\obsidian\\Obsidian.exe"
+          }
+        },
+
+        // row 3: git / containers
+        "7": {
+          "image": "icons/github.png",
+          "action": { "type": "url", "target": "https://github.com/PatrickSun93" }
+        },
+        "8": {
+          "image": "icons/docker.png",
+          "action": {
+            "type": "app",
+            "target": "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"
+          }
+        },
+        "9": {
+          "image": "icons/gitbash.png",
+          "action": { "type": "app", "target": "C:\\Program Files\\Git\\git-bash.exe" }
+        },
+
+        // row 4: utilities
+        "4": {
+          "image": "icons/snip.png",
+          "action": { "type": "keys", "target": "windows+shift+s" }
+        },
+        "5": {
+          "image": "icons/clipboard.png",
+          "action": { "type": "keys", "target": "windows+v" }
+        },
+        "6": {
+          "image": "icons/explorer.png",
+          "action": { "type": "app", "target": "explorer.exe", "args": ["D:\\devitems"] }
+        },
+
+        // row 5 (bottom): key 2 — keys 1 & 3 are the shared nav keys
+        "2": {
+          "image": "icons/taskview.png",
+          "action": { "type": "keys", "target": "windows+tab" }
+        }
+      }
+    },
+    {
+      "name": "extra",
+      "keys": {
+        "2": {
+          "image": "icons/notepadpp.png",
+          "action": {
+            "type": "app",
+            "target": "C:\\Program Files\\Notepad++\\notepad++.exe"
+          }
+        },
+        "4": {
+          "image": "icons/newdesktop.png",
+          "action": { "type": "keys", "target": "windows+ctrl+d" }
+        }
+        // 11 free slots on this page — add more bindings here.
+      }
+    }
+  ]
 }
