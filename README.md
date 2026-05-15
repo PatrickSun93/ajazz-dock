@@ -78,23 +78,31 @@ Press a key — it logs `key  N  -> <action type>` and fires.
 
 ### 6. (Optional) Start at login
 
-So you don't have to launch it manually after every reboot.
+One script generates a hidden launcher and drops it into your per-user
+Startup folder, so the dock comes up automatically at every logon:
 
-Create `start-dock.bat` in the project root (adjust the conda path):
-
-```bat
-@echo off
-call C:\Users\<you>\miniconda3\Scripts\activate.bat ajazzreplace
-cd /d "<absolute path to project>"
-python -m ajazz_dock > dock.log 2>&1
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\install_autostart.ps1
 ```
 
-Then register it with Task Scheduler:
+Pass `-PythonExe` if your interpreter isn't the default conda env path:
 
-1. `Win+R` → `taskschd.msc`
-2. **Create Task** → Trigger: **At log on**
-3. **Action**: start the `.bat` file
-4. Tick **Run with highest privileges** and **Hidden**
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\install_autostart.ps1 -PythonExe "C:\path\to\python.exe"
+```
+
+It needs no admin rights, runs hidden (no console window), and logs to
+`dock.log`. It also prints a `start now:` command so you don't have to
+wait for the next logon. To remove it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\uninstall_autostart.ps1
+```
+
+> **Why not a Windows Service?** A real service runs in session 0,
+> isolated from your desktop — it could not send keystrokes or launch
+> apps into your session. The Startup-folder launcher runs *in* your
+> session, which is exactly what this program needs.
 
 ---
 
