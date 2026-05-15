@@ -95,23 +95,39 @@ def _resolve_page(target: Any, current: int, pages: list) -> int:
 
 
 class _ReloadHandler(FileSystemEventHandler):
+    """Fire on_change when the watched config file is written.
+
+    Handles in-place writes (on_modified) and atomic saves — many editors
+    write a temp file and rename it over the target, which surfaces as
+    on_created or on_moved rather than on_modified.
+    """
+
     def __init__(self, target: Path, on_change):
         self._target = target.resolve()
         self._on_change = on_change
         self._last = 0.0
 
-    def on_modified(self, event):
+    def _maybe_fire(self, path: str) -> None:
         try:
-            if Path(event.src_path).resolve() != self._target:
+            if Path(path).resolve() != self._target:
                 return
         except OSError:
             return
-        # Editors often fire multiple modify events for one save; debounce.
+        # Editors often fire multiple events for one save; debounce.
         now = time.time()
         if now - self._last < 0.3:
             return
         self._last = now
         self._on_change()
+
+    def on_modified(self, event):
+        self._maybe_fire(event.src_path)
+
+    def on_created(self, event):
+        self._maybe_fire(event.src_path)
+
+    def on_moved(self, event):
+        self._maybe_fire(event.dest_path)
 
 
 def main(config_path: str = "settings.json") -> int:

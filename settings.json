@@ -32,6 +32,7 @@
   // Save the file — the runner picks up the change automatically.
 
   // ---- shared: appears on EVERY page (the prev/next nav keys) ----------
+  // key 1 = previous page, key 3 = next page (both wrap around).
   "shared": {
     "1": {
       "image": "icons/prev.png",
@@ -43,12 +44,12 @@
     }
   },
 
-  // ---- pages: the ◄ ► keys cycle through these (wraps around) ----------
+  // ---- pages: dev tools / system / web -- the ◄ ► keys cycle these -----
   "pages": [
     {
-      "name": "main",
+      // Page 1 -- IDEs, editors, terminals.
+      "name": "dev",
       "keys": {
-        // row 1 (top): AI / IDE
         "13": {
           "image": "icons/antigravity.png",
           "action": {
@@ -69,11 +70,12 @@
           }
         },
         "15": {
-          "image": "icons/lock.jpg",
-          "action": { "type": "shell", "target": "rundll32.exe user32.dll,LockWorkStation" }
+          "image": "icons/obsidian.png",
+          "action": {
+            "type": "app",
+            "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\obsidian\\Obsidian.exe"
+          }
         },
-
-        // row 2: terminal / editors
         "10": {
           "image": "icons/terminal.png",
           "action": {
@@ -89,17 +91,15 @@
           }
         },
         "12": {
-          "image": "icons/obsidian.png",
+          "image": "icons/notepadpp.png",
           "action": {
             "type": "app",
-            "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\obsidian\\Obsidian.exe"
+            "target": "C:\\Program Files\\Notepad++\\notepad++.exe"
           }
         },
-
-        // row 3: git / containers
         "7": {
-          "image": "icons/github.png",
-          "action": { "type": "url", "target": "https://github.com/PatrickSun93" }
+          "image": "icons/gitbash.png",
+          "action": { "type": "app", "target": "C:\\Program Files\\Git\\git-bash.exe" }
         },
         "8": {
           "image": "icons/docker.png",
@@ -107,48 +107,74 @@
             "type": "app",
             "target": "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"
           }
-        },
-        "9": {
-          "image": "icons/gitbash.png",
-          "action": { "type": "app", "target": "C:\\Program Files\\Git\\git-bash.exe" }
-        },
-
-        // row 4: utilities
-        "4": {
-          "image": "icons/snip.png",
-          "action": { "type": "keys", "target": "windows+shift+s" }
-        },
-        "5": {
-          "image": "icons/clipboard.png",
-          "action": { "type": "keys", "target": "windows+v" }
-        },
-        "6": {
-          "image": "icons/explorer.png",
-          "action": { "type": "app", "target": "explorer.exe", "args": ["D:\\devitems"] }
-        },
-
-        // row 5 (bottom): key 2 — keys 1 & 3 are the shared nav keys
-        "2": {
-          "image": "icons/taskview.png",
-          "action": { "type": "keys", "target": "windows+tab" }
         }
+        // keys 2, 4, 5, 6, 9 free on this page.
       }
     },
     {
-      "name": "extra",
+      // Page 2 -- system utilities, window management, hotkeys.
+      "name": "system",
       "keys": {
-        "2": {
-          "image": "icons/notepadpp.png",
-          "action": {
-            "type": "app",
-            "target": "C:\\Program Files\\Notepad++\\notepad++.exe"
-          }
+        "13": {
+          "image": "icons/explorer.png",
+          "action": { "type": "app", "target": "explorer.exe", "args": ["D:\\devitems"] }
         },
-        "4": {
+        "14": {
+          "image": "icons/taskmgr.png",
+          "action": { "type": "keys", "target": "ctrl+shift+esc" }
+        },
+        "15": {
+          "image": "icons/lock.jpg",
+          "action": { "type": "shell", "target": "rundll32.exe user32.dll,LockWorkStation" }
+        },
+        "11": {
+          "image": "icons/taskview.png",
+          "action": { "type": "keys", "target": "windows+tab" }
+        },
+        "12": {
           "image": "icons/newdesktop.png",
           "action": { "type": "keys", "target": "windows+ctrl+d" }
+        },
+        "7": {
+          "image": "icons/snip.png",
+          "action": { "type": "keys", "target": "windows+shift+s" }
+        },
+        "8": {
+          "image": "icons/clipboard.png",
+          "action": { "type": "keys", "target": "windows+v" }
         }
-        // 11 free slots on this page — add more bindings here.
+        // keys 2, 4, 5, 6, 9, 10 free on this page.
+      }
+    },
+    {
+      // Page 3 -- web shortcuts (open in default browser).
+      "name": "web",
+      "keys": {
+        "13": {
+          "image": "icons/github.png",
+          "action": { "type": "url", "target": "https://github.com/PatrickSun93" }
+        },
+        "14": {
+          "image": "icons/chatgpt.png",
+          "action": { "type": "url", "target": "https://chatgpt.com" }
+        },
+        "15": {
+          "image": "icons/gmail.png",
+          "action": { "type": "url", "target": "https://mail.google.com" }
+        },
+        "10": {
+          "image": "icons/excalidraw.png",
+          "action": { "type": "url", "target": "https://excalidraw.com" }
+        },
+        "11": {
+          "image": "icons/npm.png",
+          "action": { "type": "url", "target": "https://www.npmjs.com" }
+        },
+        "12": {
+          "image": "icons/localhost.png",
+          "action": { "type": "url", "target": "http://localhost:3000" }
+        }
+        // keys 2, 4, 5, 6, 7, 8, 9 free on this page.
       }
     }
   ]
