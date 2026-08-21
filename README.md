@@ -201,6 +201,14 @@ state at process start.
 `PATH`, so `claude` and everything under homebrew disappear from `shell`
 actions. `install_autostart_macos.sh` sets `PATH` explicitly for this reason.
 
+**A checkout on an external volume cannot be autostarted without granting Full
+Disk Access.** launchd-spawned processes are refused `/Volumes/...` by TCC, and
+being background processes they cannot raise the consent prompt — so the agent
+dies with `EX_CONFIG` and writes nothing to the log. Add the interpreter
+(`.venv/bin/python`) under System Settings › Privacy & Security › Full Disk
+Access, or run the dock manually. `install_autostart_macos.sh` detects this
+case and says so rather than leaving a silent failure.
+
 ---
 
 ## Status strip

@@ -32,7 +32,7 @@ from watchdog.observers import Observer
 
 from . import actions, status
 from .config import Config
-from .device import KEYS, DockDevice
+from .device import KEYS, DockDevice, DockDisconnected
 
 
 def _push_images(dock: DockDevice, key_map: Mapping[int, Mapping[str, Any]],
@@ -130,6 +130,33 @@ class _ReloadHandler(FileSystemEventHandler):
         self._maybe_fire(event.dest_path)
 
 
+def _reconnect(attempts: int = 0) -> Optional[DockDevice]:
+    """Wait for the dock to come back, backing off up to 30s between tries.
+
+    hidapi reports an unplug, a sleeping device, or a USB re-enumeration as a
+    plain read/write error. Dying on that would mean a dock that goes quiet for
+    a second stays dark until someone notices, so keep trying instead. Returns
+    None only on Ctrl-C.
+    """
+    delay = 1.0
+    while True:
+        attempts += 1
+        try:
+            dock = DockDevice()
+            print(f"[device] 已重连（第 {attempts} 次尝试）")
+            return dock
+        except KeyboardInterrupt:
+            return None
+        except Exception as exc:
+            if attempts == 1 or attempts % 10 == 0:
+                print(f"[device] 等待设备回来… ({exc})")
+            try:
+                time.sleep(delay)
+            except KeyboardInterrupt:
+                return None
+            delay = min(30.0, delay * 1.6)
+
+
 def main(config_path: str = "settings.json") -> int:
     path = Path(config_path)
     if not path.exists():
@@ -210,21 +237,35 @@ def main(config_path: str = "settings.json") -> int:
                         print("[config] reload failed:")
                         traceback.print_exc()
 
-                ready = updater.take()
-                if ready:
-                    for slot, tile in ready.items():
-                        try:
+                try:
+                    ready = updater.take()
+                    if ready:
+                        for slot, tile in ready.items():
                             dock.set_image(slot, tile)
-                        except Exception:
-                            print(f"[status] 槽 {slot} 推送失败:")
-                            traceback.print_exc()
-                    try:
                         dock.flush()
-                    except Exception:
-                        print("[status] flush 失败:")
-                        traceback.print_exc()
 
-                key = dock.read_key(timeout_ms=100)
+                    key = dock.read_key(timeout_ms=100)
+                except DockDisconnected as exc:
+                    print(f"[device] 连接断开: {exc}")
+                    try:
+                        dock.close()
+                    except Exception:
+                        pass
+                    replacement = _reconnect()
+                    if replacement is None:
+                        raise KeyboardInterrupt
+                    dock = replacement
+                    if not skip_init:
+                        dock.init()
+                    if not skip_images:
+                        if data.get("brightness") is not None:
+                            dock.set_brightness(int(data["brightness"]))
+                        # The device came back blank, so both caches are lying.
+                        image_state = {k: None for k in range(1, KEYS + 1)}
+                        image_state = _push_images(
+                            dock, pages[current_page]["keys"], image_state)
+                        updater.invalidate()
+                    continue
                 if key is None:
                     continue
 

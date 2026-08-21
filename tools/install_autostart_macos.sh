@@ -89,6 +89,27 @@ PLIST
 launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$plist"
 
+# A LaunchAgent whose files live on an external volume hits TCC: launchd-spawned
+# processes cannot read /Volumes/... until the binary is granted Full Disk
+# Access, and a background process cannot raise the consent prompt -- so it just
+# dies with EX_CONFIG and an empty log. Check for it rather than let the user
+# hunt for a silent failure.
+sleep 3
+if ! pgrep -f "\-m ajazz_dock" >/dev/null 2>&1 && [[ "$proj" == /Volumes/* ]]; then
+  echo
+  echo "⚠️  agent 起不来 —— 项目在外置盘 ($proj)，被 macOS 的隐私保护挡住了。"
+  echo "   launchd 拉起的进程读不了 /Volumes 下的可移动宗卷，且它是后台进程，"
+  echo "   弹不出授权框，所以表现为静默失败（exit 78 / 日志为空）。"
+  echo
+  echo "   解决：系统设置 > 隐私与安全性 > 完全磁盘访问权限 > 点 + ，添加"
+  echo "     $python_bin"
+  echo "   然后重新跑这个脚本。"
+  echo
+  echo "   不想授权就手动起（终端关掉也会继续跑）："
+  echo "     cd $proj && nohup ./.venv/bin/python -u -m ajazz_dock $config >> dock.log 2>&1 &"
+  exit 1
+fi
+
 echo "已安装 —— ajazz-dock 会在每次登录时自动启动。"
 echo "  plist:  $plist"
 echo "  配置:   $proj/$config"

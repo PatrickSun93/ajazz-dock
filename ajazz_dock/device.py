@@ -57,6 +57,16 @@ _CRT = b"CRT\x00\x00"
 _INPUT_PREFIX = b"ACK"
 
 
+class DockDisconnected(OSError):
+    """The HID handle stopped working mid-run.
+
+    hidapi surfaces an unplug, a sleeping device, or a USB re-enumeration as a
+    bare OSError from read/write, and a handle that is already closed as a
+    ValueError. Callers want both told apart from real programming errors so
+    they can reconnect instead of dying.
+    """
+
+
 def _pad(payload: bytes) -> bytes:
     if len(payload) > PACKET:
         raise ValueError(f"payload {len(payload)} > {PACKET}")
@@ -88,11 +98,17 @@ class DockDevice:
     # ---- output ---------------------------------------------------------
 
     def _write(self, payload: bytes) -> None:
-        # hidapi on Windows expects report ID byte prepended.
-        self._dev.write(b"\x00" + _pad(payload))
+        # hidapi wants the report ID byte prepended on every platform.
+        try:
+            self._dev.write(b"\x00" + _pad(payload))
+        except (OSError, ValueError) as exc:
+            raise DockDisconnected(str(exc)) from exc
 
     def _write_raw_chunk(self, chunk: bytes) -> None:
-        self._dev.write(b"\x00" + _pad(chunk))
+        try:
+            self._dev.write(b"\x00" + _pad(chunk))
+        except (OSError, ValueError) as exc:
+            raise DockDisconnected(str(exc)) from exc
 
     def init(self) -> None:
         # Two-step wake per mirajazz: DIS, then LIG with all-zero brightness
@@ -169,7 +185,10 @@ class DockDevice:
 
     def read_key(self, timeout_ms: int = 100) -> Optional[int]:
         """Return the 1..15 key id, or None on timeout / unknown frame."""
-        data = self._dev.read(PACKET, timeout_ms=timeout_ms)
+        try:
+            data = self._dev.read(PACKET, timeout_ms=timeout_ms)
+        except (OSError, ValueError) as exc:
+            raise DockDisconnected(str(exc)) from exc
         if not data:
             return None
         buf = bytes(data)

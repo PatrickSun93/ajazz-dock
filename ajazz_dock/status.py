@@ -242,6 +242,16 @@ class StatusUpdater:
             self._ctx.update(kwargs)
         self._wake.set()
 
+    def invalidate(self) -> None:
+        """Forget what was last drawn, so the next render repaints every slot.
+
+        Used after a reconnect: the device came back blank, but the cache still
+        believes the old tiles are on screen.
+        """
+        with self._lock:
+            self._last.clear()
+        self._wake.set()
+
     def take(self) -> dict[int, Image.Image]:
         """Hand the runner whatever is ready. Called from the main loop."""
         with self._lock:
@@ -265,9 +275,25 @@ class StatusUpdater:
             except Exception:
                 print("[status] 刷新失败:")
                 traceback.print_exc()
-            # Wake early when the page changes; otherwise sit out the interval.
-            self._wake.wait(timeout=min(self.refresh, 5))
+            self._wake.wait(timeout=self._next_delay())
             self._wake.clear()
+
+    def _next_delay(self) -> float:
+        """Sleep until the next thing that would change the display.
+
+        Normally that is just the refresh interval, but when the 5h window is
+        about to lapse, the numbers all change at that instant -- so land just
+        after it rather than up to a full interval late.
+        """
+        delay = min(self.refresh, 5.0)
+        with self._lock:
+            usage = self._ctx.get("usage")
+        window = (usage or {}).get("window") or {}
+        if window.get("open") and window.get("seconds_left") is not None:
+            left = float(window["seconds_left"])
+            if 0 < left < self.refresh:
+                delay = min(delay, left + 2)
+        return max(1.0, delay)
 
     def _render_all(self) -> None:
         with self._lock:
