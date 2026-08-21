@@ -17,7 +17,12 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 SIZE = 256
+# macOS first, then Windows -- whichever exists. The macOS faces carry CJK,
+# which the Windows ones do not, so a Chinese label renders on either host.
 _FONT_CANDIDATES = [
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    "/System/Library/Fonts/STHeiti Medium.ttc",
+    "/System/Library/Fonts/HelveticaNeue.ttc",
     r"C:\Windows\Fonts\segoeuib.ttf",
     r"C:\Windows\Fonts\arialbd.ttf",
 ]
