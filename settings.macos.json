@@ -1,0 +1,156 @@
+{
+  // macOS 配置 —— 用法： ./start-dock.sh   或   python -m ajazz_dock settings.macos.json
+  // Windows 侧继续用 settings.json，两边互不影响。
+  "$schema": "./settings.schema.json",
+
+  "brightness": 80,
+
+  // ---- 状态栏（键盘上方那条，三格，从上到下 = 槽 16/17/18）--------------
+  // 它只显示、不响应按键。
+  //
+  // ⚠️ limit 是你自己定的基准，不是真实额度 —— Claude Code 的额度只存在于
+  //    /usage 的实时 API 响应里，本地日志、~/.claude、CLI 子命令统统没有。
+  //    2500000 取自你自己历史上最忙的那个 5 小时窗口的输出 token 量。
+  //    想校准：在 Claude Code 里跑 /usage，拿真实百分比反推这个数。
+  //
+  // reset 时间是精确的：5 小时窗口从某条消息开启，5 小时后失效，
+  // 失效后的下一条消息开启新窗口 —— 从日志时间戳能完整还原这条链。
+  "status": {
+    "refresh": 60,
+    "limit": 2500000,
+    "slots": {
+      "16": { "type": "claude_pct" },
+      "17": { "type": "claude_reset" },
+      "18": { "type": "claude_usage", "window": "today" }
+    }
+  },
+
+  // 键位（从左下角起列优先编号，dock 立起来时和物理位置对应）：
+  //
+  //     col1  col2  col3
+  //      13    14    15   <- 第 1 行（顶）
+  //      10    11    12
+  //       7     8     9
+  //       4     5     6
+  //       1     2     3   <- 第 5 行（底）
+  //
+  // ── 三个坑，改配置前先读 ──────────────────────────────────────
+  // 1. claude7 是 ~/.zshrc 里的 alias，dock 调不到 —— shell 动作跑的是
+  //    非交互 /bin/sh，alias 根本不存在。一律走绝对路径。
+  // 2. 要看得见输出的命令（devstack status、dev server）必须用
+  //    tools/run-in-iterm.sh 开一个 iTerm 窗口跑，直接 shell 会把输出吞掉。
+  // 3. keys 类动作走 pynput，需要在「系统设置 > 隐私与安全性 > 辅助功能」
+  //    里给启动 dock 的那个终端 App 授权，否则静默失效、不报错。
+  //    授权后要重启一次 dock 才生效。
+
+  // ---- shared: 每页都有的翻页键 ----------------------------------------
+  "shared": {
+    "1": {
+      "image": "icons/prev.png",
+      "action": { "type": "page", "target": "prev" }
+    },
+    "3": {
+      "image": "icons/next.png",
+      "action": { "type": "page", "target": "next" }
+    }
+  },
+
+  "pages": [
+    {
+      // ── 第 1 页 · apps —— 你点名的六个 + 打开次数最高的 ──────────────
+      // 排序依据是 Spotlight 的 kMDItemUseCount，不是我猜的。
+      "name": "apps",
+      "keys": {
+        "13": { "image": "icons/chrome.png",    "action": { "type": "app", "target": "Google Chrome" } },
+        "14": { "image": "icons/iterm.png",     "action": { "type": "app", "target": "iTerm" } },
+        "15": { "image": "icons/zed.png",       "action": { "type": "app", "target": "Zed" } },
+        "10": { "image": "icons/vscode.png",    "action": { "type": "app", "target": "Visual Studio Code" } },
+        "11": { "image": "icons/claudeapp.png", "action": { "type": "app", "target": "Claude" } },
+        "12": { "image": "icons/codex.png",     "action": { "type": "app", "target": "Codex" } },
+         "7": { "image": "icons/obsidian.png",  "action": { "type": "app", "target": "Obsidian" } },
+         "8": { "image": "icons/notion.png",    "action": { "type": "app", "target": "Notion" } },
+         "9": { "image": "icons/docker.png",    "action": { "type": "app", "target": "Docker" } },
+         "4": { "image": "icons/shottr.png",    "action": { "type": "app", "target": "Shottr" } },
+         "5": { "image": "icons/xcode.png",     "action": { "type": "app", "target": "Xcode" } },
+         "6": { "image": "icons/wechat.png",    "action": { "type": "app", "target": "WeChat" } },
+         "2": { "image": "icons/discord.png",   "action": { "type": "app", "target": "Discord" } }
+      }
+    },
+    {
+      // ── 第 2 页 · files —— Finder 直达 ────────────────────────────────
+      "name": "files",
+      "keys": {
+        "13": { "image": "icons/dir_devitems.png",  "action": { "type": "shell", "target": "open /Volumes/externalssd/devitems" } },
+        "14": { "image": "icons/dir_engloop.png",   "action": { "type": "shell", "target": "open /Volumes/externalssd/devitems/ai-agents/EngLoop" } },
+        "15": { "image": "icons/dir_palearn.png",   "action": { "type": "shell", "target": "open /Volumes/externalssd/devitems/learning/palearning" } },
+        "10": { "image": "icons/dir_picron.png",    "action": { "type": "shell", "target": "open /Volumes/externalssd/devitems/trading-bots/PiCron" } },
+        "11": { "image": "icons/dir_resume.png",    "action": { "type": "shell", "target": "open /Volumes/externalssd/devitems/resume" } },
+        "12": { "image": "icons/dir_nodetex.png",   "action": { "type": "shell", "target": "open /Volumes/externalssd/devitems/web-apps/nodeTexeure" } },
+         "7": { "image": "icons/dir_brain.png",     "action": { "type": "shell", "target": "open /Volumes/externalssd/devitems/second-brain" } },
+         "8": { "image": "icons/dir_downloads.png", "action": { "type": "shell", "target": "open ~/Downloads" } },
+         "9": { "image": "icons/dir_desktop.png",   "action": { "type": "shell", "target": "open ~/Desktop" } },
+         "4": { "image": "icons/finder.png",        "action": { "type": "app",   "target": "Finder" } },
+         "5": { "image": "icons/dir_aiagents.png",  "action": { "type": "shell", "target": "open /Volumes/externalssd/devitems/ai-agents" } },
+         "6": { "image": "icons/dir_trading.png",   "action": { "type": "shell", "target": "open /Volumes/externalssd/devitems/trading-bots" } },
+         "2": { "image": "icons/dir_webapps.png",   "action": { "type": "shell", "target": "open /Volumes/externalssd/devitems/web-apps" } }
+      }
+    },
+    {
+      // ── 第 3 页 · claude —— claude7 全开 + 拆成单键 ───────────────────
+      // 13 = 原来的 claude7（一窗六 tab）。其余每键开一个独立 iTerm 窗口。
+      "name": "claude",
+      "keys": {
+        "13": { "image": "icons/cc_all.png",      "action": { "type": "shell", "target": "/Users/patrick/bin/claude-sessions.sh" } },
+        "14": { "image": "icons/cc_nodetex.png",  "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/web-apps/nodeTexeure" } },
+        "15": { "image": "icons/cc_palearn.png",  "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/learning/palearning" } },
+        "10": { "image": "icons/cc_resume.png",   "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/resume" } },
+        "11": { "image": "icons/cc_picron.png",   "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/trading-bots/PiCron" } },
+        "12": { "image": "icons/cc_pagent.png",   "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/personalAgent-wsl" } },
+         "7": { "image": "icons/cc_devitems.png", "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems" } },
+         "8": { "image": "icons/cc_engloop.png",  "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/EngLoop" } },
+         "9": { "image": "icons/cc_sched.png",    "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/personalAgent-wsl 'bash scripts/scheduler_run.sh'" } },
+         "4": { "image": "icons/cc_shipflow.png", "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/shipflow" } },
+         "5": { "image": "icons/cc_brain.png",    "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/second-brain" } }
+        // 2, 6 本页留空。
+      }
+    },
+    {
+      // ── 第 4 页 · stack —— 开发栈启停 + 本地服务 ──────────────────────
+      // ⚠️ 停止键（6）故意放在角落，离启动键（13）最远，防手滑。
+      //    它会停掉 bus、chart_server 和 tailnet 转发。
+      "name": "stack",
+      "keys": {
+        "13": { "image": "icons/stack_start.png",  "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh start'" } },
+        "14": { "image": "icons/stack_status.png", "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh status'" } },
+        "10": { "image": "icons/svc_bus.png",      "action": { "type": "url",   "target": "http://127.0.0.1:9969" } },
+        "11": { "image": "icons/svc_chart.png",    "action": { "type": "url",   "target": "http://127.0.0.1:8502" } },
+        "12": { "image": "icons/svc_3000.png",     "action": { "type": "url",   "target": "http://localhost:3000" } },
+         "7": { "image": "icons/docker.png",       "action": { "type": "app",   "target": "Docker" } },
+         "8": { "image": "icons/activitymonitor.png", "action": { "type": "app", "target": "Activity Monitor" } },
+         "9": { "image": "icons/svc_devsrv.png",   "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/web-apps/nodeTexeure 'npm run dev'" } },
+         "4": { "image": "icons/ollama.png",       "action": { "type": "app",   "target": "Ollama" } },
+         "6": { "image": "icons/stack_stop.png",   "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh stop'" } }
+        // 2, 5, 15 本页留空。
+      }
+    },
+    {
+      // ── 第 5 页 · web —— AI 三家 + dev + 消遣，末位留给富途 ────────────
+      "name": "web",
+      "keys": {
+        "13": { "image": "icons/claude.png",         "action": { "type": "url", "target": "https://claude.ai" } },
+        "14": { "image": "icons/web_notebooklm.png", "action": { "type": "url", "target": "https://notebooklm.google.com" } },
+        "15": { "image": "icons/web_gemini.png",     "action": { "type": "url", "target": "https://gemini.google.com" } },
+        "10": { "image": "icons/github.png",         "action": { "type": "url", "target": "https://github.com/PatrickSun93" } },
+        "11": { "image": "icons/chatgpt.png",        "action": { "type": "url", "target": "https://chatgpt.com" } },
+        "12": { "image": "icons/web_vercel.png",     "action": { "type": "url", "target": "https://vercel.com/dashboard" } },
+         "7": { "image": "icons/tradingview.png",    "action": { "type": "url", "target": "https://www.tradingview.com/" } },
+         "8": { "image": "icons/web_youtube.png",    "action": { "type": "url", "target": "https://www.youtube.com" } },
+         "9": { "image": "icons/web_bilibili.png",   "action": { "type": "url", "target": "https://www.bilibili.com" } },
+         "4": { "image": "icons/excalidraw.png",     "action": { "type": "url", "target": "https://excalidraw.com" } },
+         "5": { "image": "icons/web_hn.png",         "action": { "type": "url", "target": "https://news.ycombinator.com" } },
+         "6": { "image": "icons/web_supabase.png",   "action": { "type": "url", "target": "https://supabase.com/dashboard" } },
+         "2": { "image": "icons/futu.png",           "action": { "type": "app", "target": "富途牛牛" } }
+      }
+    }
+  ]
+}

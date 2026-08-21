@@ -13,7 +13,25 @@ This is a clean-room reimplementation. No vendor software required.
 
 ## Setting up on a new computer
 
-Windows only (the device, the `keyboard` lib, and the shell actions are all Win32).
+Runs on **Windows and macOS**. The HID protocol is identical on both; what
+differs is how actions are carried out, which lives in a per-platform backend
+(`ajazz_dock/backend_win32.py` / `backend_darwin.py`) picked at import time.
+
+| | Windows | macOS |
+|---|---|---|
+| config | `settings.json` | `settings.macos.json` |
+| launch | `start-dock.bat` | `start-dock.sh` |
+| open URL | `os.startfile` | `open` |
+| launch app | `subprocess.Popen` | `open -a` / `open -b` |
+| hotkeys / typing | `keyboard` | `pynput` (needs Accessibility) |
+| autostart | Startup folder (`.ps1`) | LaunchAgent (`.sh`) |
+| icon extraction | `extract_icons.ps1` | `extract_icons_macos.py` |
+
+Jump to [macOS setup](#macos-setup) if that is your host.
+
+---
+
+## Windows setup
 
 ### 1. Install Python
 
@@ -103,6 +121,128 @@ powershell -ExecutionPolicy Bypass -File tools\uninstall_autostart.ps1
 > isolated from your desktop — it could not send keystrokes or launch
 > apps into your session. The Startup-folder launcher runs *in* your
 > session, which is exactly what this program needs.
+
+---
+
+<a name="macos-setup"></a>
+## macOS setup
+
+Verified on macOS 15 (Apple Silicon) with the AKP153E.
+
+### 1. Get the project and an environment
+
+```bash
+git clone https://github.com/PatrickSun93/ajazz-dock.git
+cd ajazz-dock
+python3 -m venv .venv
+./.venv/bin/pip install -e .
+```
+
+`hidapi` installs from a wheel — **`brew install hidapi` is not needed**.
+
+### 2. Plug in the device
+
+No driver, no permission prompt, no `sudo`. The AKP153E presents a single HID
+interface on the vendor-defined usage page `0xFFA0`, which macOS does not seize
+the way it seizes keyboards, so `hid.open()` just works.
+
+Check the host sees it:
+
+```bash
+./.venv/bin/python -c "import hid; print([(hex(d['vendor_id']), hex(d['product_id'])) for d in hid.enumerate() if d['vendor_id']==0x0300])"
+```
+
+Should print `[('0x300', '0x1010'), ...]`.
+
+### 3. Build the icons
+
+Two generators, because macOS icons come from two places:
+
+```bash
+./.venv/bin/python tools/extract_icons_macos.py   # real artwork out of .app bundles
+./.venv/bin/python tools/make_key_icons.py        # SF Symbol tiles for folders, stack, web
+```
+
+### 4. Run it
+
+```bash
+./start-dock.sh                    # uses settings.macos.json, logs to dock.log
+./.venv/bin/python -u -m ajazz_dock settings.macos.json   # or in the foreground
+```
+
+### 5. (Optional) Start at login
+
+```bash
+./tools/install_autostart_macos.sh
+./tools/uninstall_autostart_macos.sh   # to remove
+```
+
+Installs a **LaunchAgent**, not a LaunchDaemon — agents run inside your login
+session and can therefore launch apps onto your desktop, which is the same
+reason the Windows side uses the Startup folder instead of a Service.
+
+---
+
+## macOS gotchas
+
+Three things that cost real time to work out:
+
+**`shell` actions run under non-interactive `/bin/sh`, so shell aliases do not
+exist.** An alias defined in `~/.zshrc` — `claude7`, say — is simply not there.
+Call the script by absolute path.
+
+**`keys` and `text` actions fail silently without Accessibility permission.**
+No error, no prompt, nothing happens — indistinguishable from an unbound key.
+Grant it to whatever launched the dock (your terminal, or the launchd process
+if it is autostarting), then **restart the dock**: pynput caches the permission
+state at process start.
+
+**launchd does not read your shell profile.** A LaunchAgent gets a minimal
+`PATH`, so `claude` and everything under homebrew disappear from `shell`
+actions. `install_autostart_macos.sh` sets `PATH` explicitly for this reason.
+
+---
+
+## Status strip
+
+Above the 15 keys are three display-only slots — logical slots **16, 17, 18**,
+top to bottom. They take images exactly like keys but never report input.
+
+```jsonc
+"status": {
+  "refresh": 60,
+  "limit": 2500000,
+  "slots": {
+    "16": { "type": "claude_pct" },      // % of the 5h output budget left
+    "17": { "type": "claude_reset" },    // time until the 5h window resets
+    "18": { "type": "claude_usage", "window": "today" }
+  }
+}
+```
+
+| provider | shows |
+|---|---|
+| `claude_pct` | share of `limit` unspent this 5h window; band turns amber under 50%, red under 20% |
+| `claude_reset` | minutes until the window resets; red under 30 minutes |
+| `claude_usage` | raw totals for `5h` / `today` / `7d`, metric selectable via `metric` |
+| `page` | current page name and index |
+| `clock` | time and date |
+
+Numbers come from `~/.claude/projects/*/*.jsonl`, which Claude Code appends a
+record to per message.
+
+**`limit` is a baseline you choose, not a real quota.** No quota is stored
+anywhere on disk — not in the logs, not elsewhere under `~/.claude`, and the
+CLI has no `usage` subcommand. `/usage` reads it live from the API and never
+writes it down. Calibrate by running `/usage` in Claude Code and working
+backwards from the percentage it reports.
+
+The **reset time is exact**, though. A 5-hour window opens on a message, lapses
+five hours later, and the next message after that opens a fresh one — a chain
+the log timestamps reconstruct completely.
+
+Refreshing never writes to the device from the worker thread: it renders tiles
+into a queue that the main loop drains, keeping every HID write on one thread.
 
 ---
 
