@@ -30,7 +30,7 @@ from typing import Any, Mapping, Optional
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-from . import actions
+from . import actions, status
 from .config import Config
 from .device import KEYS, DockDevice
 
@@ -168,9 +168,16 @@ def main(config_path: str = "settings.json") -> int:
             if not skip_images:
                 image_state = _push_images(dock, pages[current_page]["keys"], image_state)
 
+            status_cfg = data.get("status")
+            updater = status.StatusUpdater(status_cfg)
+            if updater.enabled and not skip_images:
+                updater.set_context(pages=pages, page_index=current_page)
+                updater.start()
+
             flags = []
             if skip_init: flags.append("no-init")
             if skip_images: flags.append("no-images")
+            if updater.enabled: flags.append(f"status:{len(updater.slots)}")
             extra = f"  [{', '.join(flags)}]" if flags else ""
             print(f"ajazz-dock ready. {KEYS} keys, {len(pages)} page(s), "
                   f"config={path}, watching for changes.{extra}")
@@ -187,10 +194,34 @@ def main(config_path: str = "settings.json") -> int:
                         image_state = _push_images(
                             dock, pages[current_page]["keys"], image_state
                         )
+                        new_status = data.get("status")
+                        if new_status != status_cfg:
+                            # Slot set or interval changed -- the old thread's
+                            # cached tiles no longer apply, so start over.
+                            updater.stop()
+                            status_cfg = new_status
+                            updater = status.StatusUpdater(status_cfg)
+                            if updater.enabled:
+                                updater.start()
+                        updater.set_context(pages=pages, page_index=current_page)
                         print(f"[config] reloaded {path} "
                               f"({len(pages)} page(s), on '{pages[current_page]['name']}')")
                     except Exception:
                         print("[config] reload failed:")
+                        traceback.print_exc()
+
+                ready = updater.take()
+                if ready:
+                    for slot, tile in ready.items():
+                        try:
+                            dock.set_image(slot, tile)
+                        except Exception:
+                            print(f"[status] 槽 {slot} 推送失败:")
+                            traceback.print_exc()
+                    try:
+                        dock.flush()
+                    except Exception:
+                        print("[status] flush 失败:")
                         traceback.print_exc()
 
                 key = dock.read_key(timeout_ms=100)
@@ -216,6 +247,7 @@ def main(config_path: str = "settings.json") -> int:
                         image_state = _push_images(
                             dock, pages[current_page]["keys"], image_state
                         )
+                        updater.set_context(pages=pages, page_index=current_page)
                         print(f"key {key:>2}  -> page '{pages[current_page]['name']}' "
                               f"({current_page + 1}/{len(pages)})")
                     continue
@@ -223,6 +255,10 @@ def main(config_path: str = "settings.json") -> int:
                 print(f"key {key:>2}  -> {action.get('type')}")
                 actions.run(action)
         finally:
+            try:
+                updater.stop()
+            except NameError:
+                pass
             dock.close()
     except KeyboardInterrupt:
         print("\nbye")
