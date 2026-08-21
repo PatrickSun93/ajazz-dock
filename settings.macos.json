@@ -39,7 +39,10 @@
   //    非交互 /bin/sh，alias 根本不存在。一律走绝对路径。
   // 2. 要看得见输出的命令（devstack status、dev server）必须用
   //    tools/run-in-iterm.sh 开一个 iTerm 窗口跑，直接 shell 会把输出吞掉。
-  // 3. keys 类动作走 pynput，需要在「系统设置 > 隐私与安全性 > 辅助功能」
+  // 3. 脚本一律用 `bash <路径>` 调，不靠可执行位 —— 本仓库设了
+  //    core.fileMode=false（Windows 时代遗留），git 把所有文件记成 100644，
+  //    换分支/重新 clone 后可执行位就没了，症状是 "Permission denied"。
+  // 4. keys 类动作走 pynput，需要在「系统设置 > 隐私与安全性 > 辅助功能」
   //    里给启动 dock 的那个终端 App 授权，否则静默失效、不报错。
   //    授权后要重启一次 dock 才生效。
 
@@ -100,17 +103,17 @@
       // 13 = 原来的 claude7（一窗六 tab）。其余每键开一个独立 iTerm 窗口。
       "name": "claude",
       "keys": {
-        "13": { "image": "icons/cc_all.png",      "action": { "type": "shell", "target": "/Users/patrick/bin/claude-sessions.sh" } },
-        "14": { "image": "icons/cc_nodetex.png",  "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/web-apps/nodeTexeure" } },
-        "15": { "image": "icons/cc_palearn.png",  "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/learning/palearning" } },
-        "10": { "image": "icons/cc_resume.png",   "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/resume" } },
-        "11": { "image": "icons/cc_picron.png",   "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/trading-bots/PiCron" } },
-        "12": { "image": "icons/cc_pagent.png",   "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/personalAgent-wsl" } },
-         "7": { "image": "icons/cc_devitems.png", "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems" } },
-         "8": { "image": "icons/cc_engloop.png",  "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/EngLoop" } },
-         "9": { "image": "icons/cc_sched.png",    "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/personalAgent-wsl 'bash scripts/scheduler_run.sh'" } },
-         "4": { "image": "icons/cc_shipflow.png", "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/shipflow" } },
-         "5": { "image": "icons/cc_brain.png",    "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/second-brain" } }
+        "13": { "image": "icons/cc_all.png",      "action": { "type": "shell", "target": "bash /Users/patrick/bin/claude-sessions.sh" } },
+        "14": { "image": "icons/cc_nodetex.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/web-apps/nodeTexeure" } },
+        "15": { "image": "icons/cc_palearn.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/learning/palearning" } },
+        "10": { "image": "icons/cc_resume.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/resume" } },
+        "11": { "image": "icons/cc_picron.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/trading-bots/PiCron" } },
+        "12": { "image": "icons/cc_pagent.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/personalAgent-wsl" } },
+         "7": { "image": "icons/cc_devitems.png", "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems" } },
+         "8": { "image": "icons/cc_engloop.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/EngLoop" } },
+         "9": { "image": "icons/cc_sched.png",    "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/personalAgent-wsl 'bash scripts/scheduler_run.sh'" } },
+         "4": { "image": "icons/cc_shipflow.png", "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/shipflow" } },
+         "5": { "image": "icons/cc_brain.png",    "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/second-brain" } }
         // 2, 6 本页留空。
       }
     },
@@ -120,16 +123,16 @@
       //    它会停掉 bus、chart_server 和 tailnet 转发。
       "name": "stack",
       "keys": {
-        "13": { "image": "icons/stack_start.png",  "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh start'" } },
-        "14": { "image": "icons/stack_status.png", "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh status'" } },
+        "13": { "image": "icons/stack_start.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh start'" } },
+        "14": { "image": "icons/stack_status.png", "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh status'" } },
         "10": { "image": "icons/svc_bus.png",      "action": { "type": "url",   "target": "http://127.0.0.1:9969" } },
         "11": { "image": "icons/svc_chart.png",    "action": { "type": "url",   "target": "http://127.0.0.1:8502" } },
         "12": { "image": "icons/svc_3000.png",     "action": { "type": "url",   "target": "http://localhost:3000" } },
          "7": { "image": "icons/docker.png",       "action": { "type": "app",   "target": "Docker" } },
          "8": { "image": "icons/activitymonitor.png", "action": { "type": "app", "target": "Activity Monitor" } },
-         "9": { "image": "icons/svc_devsrv.png",   "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/web-apps/nodeTexeure 'npm run dev'" } },
+         "9": { "image": "icons/svc_devsrv.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/web-apps/nodeTexeure 'npm run dev'" } },
          "4": { "image": "icons/ollama.png",       "action": { "type": "app",   "target": "Ollama" } },
-         "6": { "image": "icons/stack_stop.png",   "action": { "type": "shell", "target": "/Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh stop'" } }
+         "6": { "image": "icons/stack_stop.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh stop'" } }
         // 2, 5, 15 本页留空。
       }
     },

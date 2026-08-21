@@ -29,7 +29,7 @@ import sys
 from typing import Optional
 
 import hid
-from PIL import Image
+from PIL import Image, ImageStat
 
 DEBUG = os.environ.get("DOCK_DEBUG") == "1"
 
@@ -132,13 +132,22 @@ class DockDevice:
 
         img = Image.open(image) if isinstance(image, str) else image
         if img.mode != "RGB":
-            # The LCD has no alpha channel. A bare convert("RGB") on a
-            # palette-with-transparency PNG warns and leaves the transparent
-            # pixels as whatever sat in the palette, so flatten onto black --
-            # which is what an unlit LCD pixel is anyway.
+            # The LCD has no alpha channel, so transparency has to be flattened
+            # onto something. Black is the obvious choice -- an unlit pixel --
+            # but it makes dark-on-transparent logos (GitHub, Vercel, Notion)
+            # vanish completely. Pick the ground from how dark the artwork
+            # actually is, measured over the opaque pixels only.
             img = img.convert("RGBA")
+            alpha = img.getchannel("A")
+            ground = (0, 0, 0, 255)
+            if alpha.getextrema()[0] < 255:
+                mask = alpha.point(lambda a: 255 if a > 128 else 0)
+                if mask.getbbox() is not None:
+                    mean = ImageStat.Stat(img.convert("L"), mask).mean[0]
+                    if mean < 110:
+                        ground = (255, 255, 255, 255)
             img = Image.alpha_composite(
-                Image.new("RGBA", img.size, (0, 0, 0, 255)), img)
+                Image.new("RGBA", img.size, ground), img)
             img = img.convert("RGB")
         img = img.resize(IMAGE_SIZE, Image.LANCZOS)
         if IMAGE_ROTATE:
