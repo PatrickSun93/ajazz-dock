@@ -8,4 +8,6 @@ dependencies:
   - watchdog
   - pip:
       - hidapi
-      - keyboard
+      # keyboard is Windows-only; pynput is the macOS equivalent.
+      - keyboard; sys_platform == 'win32'
+      - pynput; sys_platform == 'darwin'

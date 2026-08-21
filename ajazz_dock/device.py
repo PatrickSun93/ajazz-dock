@@ -131,7 +131,16 @@ class DockDevice:
             raise ValueError(f"key {key} out of range 1..{LOGICAL_SLOTS}")
 
         img = Image.open(image) if isinstance(image, str) else image
-        img = img.convert("RGB").resize(IMAGE_SIZE, Image.LANCZOS)
+        if img.mode != "RGB":
+            # The LCD has no alpha channel. A bare convert("RGB") on a
+            # palette-with-transparency PNG warns and leaves the transparent
+            # pixels as whatever sat in the palette, so flatten onto black --
+            # which is what an unlit LCD pixel is anyway.
+            img = img.convert("RGBA")
+            img = Image.alpha_composite(
+                Image.new("RGBA", img.size, (0, 0, 0, 255)), img)
+            img = img.convert("RGB")
+        img = img.resize(IMAGE_SIZE, Image.LANCZOS)
         if IMAGE_ROTATE:
             img = img.rotate(IMAGE_ROTATE, expand=False)
 
