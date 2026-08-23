@@ -20,6 +20,7 @@ Env knobs:
 from __future__ import annotations
 
 import os
+import signal
 import sys
 import threading
 import time
@@ -130,6 +131,36 @@ class _ReloadHandler(FileSystemEventHandler):
         self._maybe_fire(event.dest_path)
 
 
+_shutdown = threading.Event()
+
+
+def _install_signal_handlers() -> None:
+    """Ask the loop to stop, rather than dying where it stands.
+
+    Without this a SIGTERM leaves the last page's icons lit on a dock nothing
+    is driving any more -- it looks running when it is not.
+    """
+    def handler(signum, _frame):
+        print(f"\n[dock] 收到信号 {signum}，正在收尾…")
+        _shutdown.set()
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            signal.signal(sig, handler)
+        except (ValueError, OSError):
+            pass  # not the main thread, or the platform disallows it
+
+
+def _park(dock: DockDevice) -> None:
+    """Blank the panel and put it to sleep on the way out."""
+    try:
+        dock.clear_all()
+        dock.flush()
+        dock.sleep()
+    except Exception:
+        pass  # already gone; nothing useful left to do
+
+
 def _reconnect(attempts: int = 0) -> Optional[DockDevice]:
     """Wait for the dock to come back, backing off up to 30s between tries.
 
@@ -170,6 +201,9 @@ def main(config_path: str = "settings.json") -> int:
         print(f"[config] {e}")
         return 1
 
+    _shutdown.clear()
+    _install_signal_handlers()
+
     reload_event = threading.Event()
     handler = _ReloadHandler(path, reload_event.set)
     observer = Observer()
@@ -209,7 +243,7 @@ def main(config_path: str = "settings.json") -> int:
             print(f"ajazz-dock ready. {KEYS} keys, {len(pages)} page(s), "
                   f"config={path}, watching for changes.{extra}")
 
-            while True:
+            while not _shutdown.is_set():
                 if reload_event.is_set():
                     reload_event.clear()
                     try:
@@ -300,10 +334,14 @@ def main(config_path: str = "settings.json") -> int:
                 updater.stop()
             except NameError:
                 pass
+            _park(dock)
             dock.close()
     except KeyboardInterrupt:
         print("\nbye")
         return 0
+    except DockDisconnected as exc:
+        print(f"[device] 放弃: {exc}")
+        return 1
     finally:
         observer.stop()
         observer.join()

@@ -154,6 +154,33 @@
          "6": { "image": "icons/web_supabase.png",   "action": { "type": "url", "target": "https://supabase.com/dashboard" } },
          "2": { "image": "icons/futu.png",           "action": { "type": "app", "target": "富途牛牛" } }
       }
+    },
+    {
+      // ── 第 6 页 · quit —— 退出应用，键位和第 1 页一一对应 ────────────────
+      // 一律用 AppleScript 的 quit（不是 kill），应用会正常保存状态、
+      // 该弹的确认框会弹。
+      //
+      // ⚠️ 15 = 退出 iTerm：会连带关掉所有 Claude Code 会话。dock 本身不受
+      //    影响 —— 它是 nohup 起的、已脱离终端；但如果你是在 iTerm 前台跑
+      //    dock 的，这一下会把 dock 也带走。
+      //
+      // 从第 1 页按一下 ◀ 就到这页（翻页是循环的）。
+      "name": "quit",
+      "keys": {
+        "13": { "image": "icons/quit_chrome.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"Google Chrome\" to quit'" } },
+        "14": { "image": "icons/quit_iterm.png",     "action": { "type": "shell", "target": "osascript -e 'tell application \"iTerm\" to quit'" } },
+        "15": { "image": "icons/quit_zed.png",       "action": { "type": "shell", "target": "osascript -e 'tell application \"Zed\" to quit'" } },
+        "10": { "image": "icons/quit_vscode.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"Visual Studio Code\" to quit'" } },
+        "11": { "image": "icons/quit_claudeapp.png", "action": { "type": "shell", "target": "osascript -e 'tell application \"Claude\" to quit'" } },
+        "12": { "image": "icons/quit_codex.png",     "action": { "type": "shell", "target": "osascript -e 'tell application \"Codex\" to quit'" } },
+         "7": { "image": "icons/quit_obsidian.png",  "action": { "type": "shell", "target": "osascript -e 'tell application \"Obsidian\" to quit'" } },
+         "8": { "image": "icons/quit_notion.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"Notion\" to quit'" } },
+         "9": { "image": "icons/quit_docker.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"Docker\" to quit'" } },
+         "4": { "image": "icons/quit_shottr.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"Shottr\" to quit'" } },
+         "5": { "image": "icons/quit_xcode.png",     "action": { "type": "shell", "target": "osascript -e 'tell application \"Xcode\" to quit'" } },
+         "6": { "image": "icons/quit_wechat.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"WeChat\" to quit'" } },
+         "2": { "image": "icons/quit_discord.png",   "action": { "type": "shell", "target": "osascript -e 'tell application \"Discord\" to quit'" } }
+      }
     }
   ]
 }

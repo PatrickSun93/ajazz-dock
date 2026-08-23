@@ -168,7 +168,13 @@ Two generators, because macOS icons come from two places:
 ```bash
 ./start-dock.sh                    # uses settings.macos.json, logs to dock.log
 ./.venv/bin/python -u -m ajazz_dock settings.macos.json   # or in the foreground
+./stop-dock.sh                     # stop it and leave the panel dark
 ```
+
+`stop-dock.sh` sends SIGTERM, which the runner handles by clearing every key
+and sleeping the panel before it exits. `kill -9` skips all that and leaves the
+last page's icons glowing on a dock nothing is driving — use `./stop-dock.sh -f`
+only when it will not go quietly.
 
 ### 5. (Optional) Start at login
 

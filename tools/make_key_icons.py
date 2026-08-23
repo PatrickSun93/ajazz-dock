@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 from AppKit import NSImage, NSImageSymbolConfiguration, NSBitmapImageRep
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 
 SIZE = 256
 SYMBOL_FRAC = 0.44          # symbol height as a fraction of the tile
@@ -162,6 +162,45 @@ def tile(out: Path, sym_name: str, label: str, grad: tuple[str, str]) -> str:
     return status
 
 
+# Quit tiles reuse the app's own artwork, dimmed with a red cross badge -- the
+# key has to read as "this closes Chrome", not "this opens Chrome", at a glance
+# and at 95px.
+QUIT_OF = {
+    "quit_chrome": "chrome", "quit_iterm": "iterm", "quit_zed": "zed",
+    "quit_vscode": "vscode", "quit_claudeapp": "claudeapp", "quit_codex": "codex",
+    "quit_obsidian": "obsidian", "quit_notion": "notion", "quit_docker": "docker",
+    "quit_shottr": "shottr", "quit_xcode": "xcode", "quit_wechat": "wechat",
+    "quit_discord": "discord",
+}
+
+BADGE_RED = (198, 42, 32)
+
+
+def quit_tile(out: Path, source: Path) -> str:
+    if not source.exists():
+        return f"源图标缺失({source.name})"
+    img = Image.open(source)
+    if img.mode != "RGB":
+        img = img.convert("RGBA")
+        img = Image.alpha_composite(
+            Image.new("RGBA", img.size, (0, 0, 0, 255)), img).convert("RGB")
+    img = img.resize((SIZE, SIZE), Image.LANCZOS)
+    img = ImageEnhance.Brightness(img).enhance(0.5)
+
+    draw = ImageDraw.Draw(img)
+    radius = int(SIZE * 0.235)
+    cx = cy = SIZE - radius - int(SIZE * 0.045)
+    draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius],
+                 fill=BADGE_RED, outline=(255, 255, 255), width=int(SIZE * 0.022))
+    arm = int(radius * 0.44)
+    width = int(SIZE * 0.045)
+    draw.line([cx - arm, cy - arm, cx + arm, cy + arm], fill="white", width=width)
+    draw.line([cx - arm, cy + arm, cx + arm, cy - arm], fill="white", width=width)
+
+    img.save(out)
+    return "OK"
+
+
 def main(argv: list[str]) -> int:
     want = set(argv)
     made = failed = 0
@@ -174,6 +213,16 @@ def main(argv: list[str]) -> int:
         else:
             failed += 1
             print(f"  ⚠ {name}: {status}")
+    for name, src in QUIT_OF.items():
+        if want and name not in want:
+            continue
+        status = quit_tile(ICONS_DIR / f"{name}.png", ICONS_DIR / f"{src}.png")
+        if status == "OK":
+            made += 1
+        else:
+            failed += 1
+            print(f"  ⚠ {name}: {status}")
+
     print(f"{made} 个图标已生成" + (f", {failed} 个符号名无效" if failed else "")
           + f"  ->  {ICONS_DIR}")
     return 1 if failed else 0
