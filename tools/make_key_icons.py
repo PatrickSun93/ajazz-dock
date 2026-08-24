@@ -74,6 +74,11 @@ ICONS: dict[str, tuple[str, str, tuple[str, str]]] = {
     "cc_shipflow":   ("shippingbox.fill",                      "shipflow", CC),
     "cc_brain":      ("brain.head.profile",                    "二脑",      CC),
 
+    # Base for the page-6 "close everything" key. Same symbol as cc_all so the
+    # two pages line up, but the label has to say 全关, not 全开 -- reusing
+    # cc_all directly would put "open all" on the key that closes them.
+    "_base_close_all": ("square.grid.3x3.fill",                 "全关",      CC_HI),
+
     # ---- P4 dev stack ----
     "stack_start":   ("play.fill",                             "启动",      TEAL),
     "stack_status":  ("waveform.path.ecg",                     "状态",      TEAL),
@@ -162,21 +167,29 @@ def tile(out: Path, sym_name: str, label: str, grad: tuple[str, str]) -> str:
     return status
 
 
-# Quit tiles reuse the app's own artwork, dimmed with a red cross badge -- the
-# key has to read as "this closes Chrome", not "this opens Chrome", at a glance
-# and at 95px.
-QUIT_OF = {
-    "quit_chrome": "chrome", "quit_iterm": "iterm", "quit_zed": "zed",
-    "quit_vscode": "vscode", "quit_claudeapp": "claudeapp", "quit_codex": "codex",
-    "quit_obsidian": "obsidian", "quit_notion": "notion", "quit_docker": "docker",
-    "quit_shottr": "shottr", "quit_xcode": "xcode", "quit_wechat": "wechat",
-    "quit_discord": "discord",
+# Close tiles reuse the page-3 session artwork, dimmed with a red cross badge:
+# whatever symbol opens a session on page 3 closes it on page 6, so the two
+# pages read as the same map. At 95px only the badge can carry the difference.
+#
+# personalAgent and its scheduler are deliberately absent. The mail/calendar
+# agent runs silently, and nothing signals that it stopped -- you find out by
+# noticing a batch of unprocessed mail. No key, no accident.
+CLOSE_OF = {
+    "close_all": "_base_close_all",
+    "close_nodetex": "cc_nodetex",
+    "close_palearn": "cc_palearn",
+    "close_resume": "cc_resume",
+    "close_picron": "cc_picron",
+    "close_devitems": "cc_devitems",
+    "close_engloop": "cc_engloop",
+    "close_shipflow": "cc_shipflow",
+    "close_brain": "cc_brain",
 }
 
 BADGE_RED = (198, 42, 32)
 
 
-def quit_tile(out: Path, source: Path) -> str:
+def close_tile(out: Path, source: Path) -> str:
     if not source.exists():
         return f"源图标缺失({source.name})"
     img = Image.open(source)
@@ -189,7 +202,12 @@ def quit_tile(out: Path, source: Path) -> str:
 
     draw = ImageDraw.Draw(img)
     radius = int(SIZE * 0.235)
-    cx = cy = SIZE - radius - int(SIZE * 0.045)
+    # Top-right, not bottom-right: the source tiles carry their label along the
+    # bottom, and a badge down there covers the one word telling you which
+    # session the key closes.
+    margin = int(SIZE * 0.045)
+    cx = SIZE - radius - margin
+    cy = radius + margin
     draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius],
                  fill=BADGE_RED, outline=(255, 255, 255), width=int(SIZE * 0.022))
     arm = int(radius * 0.44)
@@ -213,15 +231,21 @@ def main(argv: list[str]) -> int:
         else:
             failed += 1
             print(f"  ⚠ {name}: {status}")
-    for name, src in QUIT_OF.items():
+    for name, src in CLOSE_OF.items():
         if want and name not in want:
             continue
-        status = quit_tile(ICONS_DIR / f"{name}.png", ICONS_DIR / f"{src}.png")
+        status = close_tile(ICONS_DIR / f"{name}.png", ICONS_DIR / f"{src}.png")
         if status == "OK":
             made += 1
         else:
             failed += 1
             print(f"  ⚠ {name}: {status}")
+
+    # The base tile is scaffolding, not a key image.
+    scaffold = ICONS_DIR / "_base_close_all.png"
+    if scaffold.exists() and not want:
+        scaffold.unlink()
+        made -= 1
 
     print(f"{made} 个图标已生成" + (f", {failed} 个符号名无效" if failed else "")
           + f"  ->  {ICONS_DIR}")

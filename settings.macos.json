@@ -156,30 +156,30 @@
       }
     },
     {
-      // ── 第 6 页 · quit —— 退出应用，键位和第 1 页一一对应 ────────────────
-      // 一律用 AppleScript 的 quit（不是 kill），应用会正常保存状态、
-      // 该弹的确认框会弹。
+      // ── 第 6 页 · close —— 关闭 Claude Code 会话，键位对齐第 3 页 ────────
+      // 第 3 页哪个位置开某个项目的会话，这一页同一个位置就关它。
+      // 从第 1 页按一下 ◀ 就到这页（翻页循环）。
       //
-      // ⚠️ 15 = 退出 iTerm：会连带关掉所有 Claude Code 会话。dock 本身不受
-      //    影响 —— 它是 nohup 起的、已脱离终端；但如果你是在 iTerm 前台跑
-      //    dock 的，这一下会把 dock 也带走。
+      // ⚠️ 12 和 9 故意留空 —— 那是第 3 页的 personalAgent 和 定时(scheduler)。
+      //    邮件/日历 agent 静默后台跑，停了不会有任何现象告诉你，
+      //    等发现时已经漏了一批邮件。脚本里也硬编码了保护，
+      //    即使误配也关不掉它。devstack.sh 出于同样理由不管 personalagent。
       //
-      // 从第 1 页按一下 ◀ 就到这页（翻页是循环的）。
-      "name": "quit",
+      // ⚠️ 7 = 关闭 devitems 根目录的会话。你要是正好在那儿跑 Claude Code，
+      //    按下去就是关掉你自己那个。
+      "name": "close",
       "keys": {
-        "13": { "image": "icons/quit_chrome.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"Google Chrome\" to quit'" } },
-        "14": { "image": "icons/quit_iterm.png",     "action": { "type": "shell", "target": "osascript -e 'tell application \"iTerm\" to quit'" } },
-        "15": { "image": "icons/quit_zed.png",       "action": { "type": "shell", "target": "osascript -e 'tell application \"Zed\" to quit'" } },
-        "10": { "image": "icons/quit_vscode.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"Visual Studio Code\" to quit'" } },
-        "11": { "image": "icons/quit_claudeapp.png", "action": { "type": "shell", "target": "osascript -e 'tell application \"Claude\" to quit'" } },
-        "12": { "image": "icons/quit_codex.png",     "action": { "type": "shell", "target": "osascript -e 'tell application \"Codex\" to quit'" } },
-         "7": { "image": "icons/quit_obsidian.png",  "action": { "type": "shell", "target": "osascript -e 'tell application \"Obsidian\" to quit'" } },
-         "8": { "image": "icons/quit_notion.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"Notion\" to quit'" } },
-         "9": { "image": "icons/quit_docker.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"Docker\" to quit'" } },
-         "4": { "image": "icons/quit_shottr.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"Shottr\" to quit'" } },
-         "5": { "image": "icons/quit_xcode.png",     "action": { "type": "shell", "target": "osascript -e 'tell application \"Xcode\" to quit'" } },
-         "6": { "image": "icons/quit_wechat.png",    "action": { "type": "shell", "target": "osascript -e 'tell application \"WeChat\" to quit'" } },
-         "2": { "image": "icons/quit_discord.png",   "action": { "type": "shell", "target": "osascript -e 'tell application \"Discord\" to quit'" } }
+        "13": { "image": "icons/close_all.png",      "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh --all" } },
+        "14": { "image": "icons/close_nodetex.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/web-apps/nodeTexeure" } },
+        "15": { "image": "icons/close_palearn.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/learning/palearning" } },
+        "10": { "image": "icons/close_resume.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/resume" } },
+        "11": { "image": "icons/close_picron.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/trading-bots/PiCron" } },
+         "7": { "image": "icons/close_devitems.png", "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems" } },
+         "8": { "image": "icons/close_engloop.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/ai-agents/EngLoop" } },
+         "4": { "image": "icons/close_shipflow.png", "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/shipflow" } },
+         "5": { "image": "icons/close_brain.png",    "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/second-brain" } }
+        // 9 和 12 永远留空：personalAgent / scheduler 不参与关闭。
+        // 2, 6 未用。
       }
     }
   ]

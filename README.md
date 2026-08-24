@@ -176,6 +176,27 @@ and sleeping the panel before it exits. `kill -9` skips all that and leaves the
 last page's icons glowing on a dock nothing is driving — use `./stop-dock.sh -f`
 only when it will not go quietly.
 
+### Closing Claude Code sessions
+
+`tools/close-claude-session.sh` closes the session running in a given project,
+matched by working directory (the command line is identical across all of them):
+
+```bash
+./tools/close-claude-session.sh --list                  # show, touch nothing
+./tools/close-claude-session.sh /path/to/project
+./tools/close-claude-session.sh --all
+```
+
+Two things it refuses to close:
+
+- **Anything under `personalAgent-wsl`.** The mail/calendar agent runs silently
+  and nothing signals that it stopped — you find out by noticing a batch of
+  unprocessed mail. Hardcoded, so a bad config cannot reach it either. There is
+  no key for it on page 6, and `--all` skips it.
+- **The VS Code extension helper**, whose argv points into `.vscode/extensions`.
+  It shares the `claude` process name with real sessions, but closing it only
+  breaks the editor integration.
+
 ### 5. (Optional) Start at login
 
 ```bash
