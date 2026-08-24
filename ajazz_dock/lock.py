@@ -87,6 +87,18 @@ class ChildLock:
             return True
         return False
 
+    @property
+    def progress(self) -> int:
+        """How many leading code digits the recent presses already satisfy.
+
+        Under sliding-window matching there is no single "position", so report
+        the longest prefix the tail of the buffer currently satisfies.
+        """
+        for n in range(len(self.code), 0, -1):
+            if self._buffer[-n:] == self.code[:n]:
+                return n
+        return 0
+
     def describe(self) -> str:
         bits = [f"序列 {'-'.join(str(k) for k in self.code)}"]
         if self.idle_seconds:

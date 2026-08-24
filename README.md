@@ -196,6 +196,19 @@ A key with `{ "type": "lock" }` locks on demand; page 3 key 6 carries one.
 there is no release event in the input frame — so there is nothing to time a
 hold against. A sequence is the only gesture this hardware can distinguish.
 
+The default code is the row nearest you, left to right. Which key ids those
+are depends on which way round the dock sits: with the status strip at the top
+(strip furthest from you) the near row is 13-14-15, and page 1 has Chrome /
+iTerm / Zed there.
+
+Locked presses are logged with a progress bar (`● ● ○  2/3`), because a panel
+that shows nothing back is unusable to press into — you cannot tell a key that
+did not register from a code you are entering wrong.
+
+**Forgotten the code?** Restart the dock: `./stop-dock.sh && ./start-dock.sh`.
+`start_locked` defaults to false, so it comes back unlocked. The lock exists to
+stop small hands, not to survive someone with a terminal.
+
 While locked every key shows the same tile, so the panel gives away nothing
 about which positions the code uses. Matching runs over a sliding window, so a
 burst of random presses followed by the right sequence still opens it — which

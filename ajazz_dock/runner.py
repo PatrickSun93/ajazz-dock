@@ -330,11 +330,18 @@ def main(config_path: str = "settings.json") -> int:
 
                 if child.locked:
                     # Locked: presses only ever feed the unlock sequence.
+                    # Log it -- pressing into a panel that shows nothing back
+                    # is unusable without some way to tell whether the key
+                    # even registered.
                     if child.feed(key):
-                        print("[lock] 已解锁")
+                        print("[lock] 已解锁 ✓")
                         image_state = {k: None for k in range(1, KEYS + 1)}
                         image_state = _push_images(
                             dock, pages[current_page]["keys"], image_state)
+                    else:
+                        done, total = child.progress, len(child.code)
+                        bar = "●" * done + "○" * (total - done)
+                        print(f"[lock] 键 {key:>2}  {bar} {done}/{total}")
                     continue
 
                 child.note_activity()
