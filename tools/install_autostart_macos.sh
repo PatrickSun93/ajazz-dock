@@ -20,6 +20,16 @@
 #   2. The device not being ready at login. KeepAlive restarts the runner if it
 #      exits, so a dock plugged in after login still gets picked up instead of
 #      staying dark until you notice.
+#
+#   3. Nothing in this plist points at the external volume. On a removable
+#      volume, TCC refuses *launchd itself* the accesses it would make on the
+#      job's behalf -- the WorkingDirectory chdir, and opening StandardOutPath
+#      -- and the job dies with EX_CONFIG before the program ever runs, log
+#      empty. The spawned process reads the volume fine; it is launchd's own
+#      accesses that are denied. So bash does the cd and the redirect, and the
+#      plist only ever names paths on the internal disk.
+#      (com.patrick.personalagent.scheduler, on the same volume, gets away
+#      with it the same way: no WorkingDirectory, script cds itself.)
 set -euo pipefail
 
 proj="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -50,15 +60,10 @@ cat > "$plist" <<PLIST
 
   <key>ProgramArguments</key>
   <array>
-    <string>$python_bin</string>
-    <string>-u</string>
-    <string>-m</string>
-    <string>ajazz_dock</string>
-    <string>$config</string>
+    <string>/bin/bash</string>
+    <string>-c</string>
+    <string>cd "$proj" &amp;&amp; exec "$python_bin" -u -m ajazz_dock "$config" &gt;&gt; "$proj/dock.log" 2&gt;&amp;1</string>
   </array>
-
-  <key>WorkingDirectory</key>
-  <string>$proj</string>
 
   <!-- launchd gives a minimal PATH; without this, \`claude\`, \`osascript\`
        lookups and homebrew binaries disappear from shell actions. -->
@@ -77,10 +82,12 @@ cat > "$plist" <<PLIST
   <key>ThrottleInterval</key>
   <integer>10</integer>
 
+  <!-- Internal disk only. This catches failures from before bash gets to set
+       up its own redirect into the project's dock.log. -->
   <key>StandardOutPath</key>
-  <string>$proj/dock.log</string>
+  <string>$HOME/Library/Logs/ajazz-dock-launchd.log</string>
   <key>StandardErrorPath</key>
-  <string>$proj/dock.log</string>
+  <string>$HOME/Library/Logs/ajazz-dock-launchd.log</string>
 </dict>
 </plist>
 PLIST
@@ -94,18 +101,24 @@ launchctl bootstrap "gui/$(id -u)" "$plist"
 # Access, and a background process cannot raise the consent prompt -- so it just
 # dies with EX_CONFIG and an empty log. Check for it rather than let the user
 # hunt for a silent failure.
-sleep 3
+sleep 4
 if ! pgrep -f "\-m ajazz_dock" >/dev/null 2>&1 && [[ "$proj" == /Volumes/* ]]; then
+  real=$("$python_bin" -c 'import os,sys;print(os.path.realpath(sys.executable))' 2>/dev/null)
+  app="${real%/bin/*}/Resources/Python.app"
   echo
-  echo "⚠️  agent 起不来 —— 项目在外置盘 ($proj)，被 macOS 的隐私保护挡住了。"
-  echo "   launchd 拉起的进程读不了 /Volumes 下的可移动宗卷，且它是后台进程，"
-  echo "   弹不出授权框，所以表现为静默失败（exit 78 / 日志为空）。"
+  echo "⚠️  agent 起不来 —— 项目在外置盘，解释器没有「完全磁盘访问权限」。"
+  echo
+  echo "   TCC 是按可执行文件授权的。/bin/bash 若已授权，它能 cd 进外置盘、"
+  echo "   也能写日志（所以 plist 看着没毛病），但 python 自己读不了外置盘上的"
+  echo "   .py 和 site-packages —— 于是进程起来了却一行输出都没有，"
+  echo "   或者直接 exit 78。"
   echo
   echo "   解决：系统设置 > 隐私与安全性 > 完全磁盘访问权限 > 点 + ，添加"
-  echo "     $python_bin"
-  echo "   然后重新跑这个脚本。"
+  [ -d "$app" ] && echo "     $app" || echo "     $real"
+  echo "   （Finder 里按 Cmd+Shift+G 粘贴这个路径就能选到）"
+  echo "   加完重新跑这个脚本。"
   echo
-  echo "   不想授权就手动起（终端关掉也会继续跑）："
+  echo "   不想授权就手动起（终端关掉也会继续跑，但重启电脑要再来一次）："
   echo "     cd $proj && nohup ./.venv/bin/python -u -m ajazz_dock $config >> dock.log 2>&1 &"
   exit 1
 fi
@@ -114,6 +127,7 @@ echo "已安装 —— ajazz-dock 会在每次登录时自动启动。"
 echo "  plist:  $plist"
 echo "  配置:   $proj/$config"
 echo "  日志:   $proj/dock.log"
+echo "  启动日志: $HOME/Library/Logs/ajazz-dock-launchd.log（launchd 自己的报错）"
 echo "  查状态: launchctl print gui/$(id -u)/$label | head -20"
 echo "  看日志: tail -f $proj/dock.log"
 echo "  卸载:   ./tools/uninstall_autostart_macos.sh"
