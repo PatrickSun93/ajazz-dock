@@ -333,8 +333,10 @@ top to bottom. They take images exactly like keys but never report input.
 
 | provider | shows |
 |---|---|
+| `claude_week_pct` | share of the **weekly** quota left — the cap that actually binds |
+| `claude_week_reset` | time until the weekly quota rolls over |
 | `claude_pct` | share of `limit` unspent this 5h window; band turns amber under 50%, red under 20% |
-| `claude_reset` | minutes until the window resets; red under 30 minutes |
+| `claude_reset` | minutes until the 5h window resets; red under 30 minutes |
 | `claude_usage` | raw totals for `5h` / `today` / `7d`, metric selectable via `metric` |
 | `page` | current page name and index |
 | `clock` | time and date |
@@ -342,15 +344,22 @@ top to bottom. They take images exactly like keys but never report input.
 Numbers come from `~/.claude/projects/*/*.jsonl`, which Claude Code appends a
 record to per message.
 
-**`limit` is a baseline you choose, not a real quota.** No quota is stored
-anywhere on disk — not in the logs, not elsewhere under `~/.claude`, and the
-CLI has no `usage` subcommand. `/usage` reads it live from the API and never
-writes it down. Calibrate by running `/usage` in Claude Code and working
-backwards from the percentage it reports.
+**The cap that binds is weekly, not the 5h window.** `/usage` reports both;
+the weekly line is the one that runs out. The default slots show weekly.
 
-The **reset time is exact**, though. A 5-hour window opens on a message, lapses
-five hours later, and the next message after that opens a fresh one — a chain
-the log timestamps reconstruct completely.
+**`week_limit` is calibrated, not guessed.** No quota is stored anywhere on
+disk — not in the logs, not elsewhere under `~/.claude`, and the CLI has no
+`usage` subcommand; `/usage` reads it live and never writes it down. So the
+baseline comes from pinning one real reading against the local totals: on
+2026-08-24 `/usage` reported 37% of the week used, and the logs showed 10.31M
+output tokens spent into that period, putting 100% near 27.9M. Output tokens
+are a *proxy* for whatever Anthropic actually weighs, so recalibrate the same
+way whenever the strip and `/usage` drift apart.
+
+**Reset times are exact.** `week_anchor` is one observed reset instant and
+periods repeat every 7 days from it, so it never needs updating. The 5h chain
+is reconstructible too: a window opens on a message, lapses five hours later,
+and the next message after that opens a fresh one.
 
 Refreshing never writes to the device from the worker thread: it renders tiles
 into a queue that the main loop drains, keeping every HID write on one thread.

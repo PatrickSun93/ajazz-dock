@@ -186,7 +186,46 @@ def _provider_claude_reset(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
     return label, value, spec.get("sub", sub), band
 
 
+def _provider_claude_week_pct(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
+    """Share of the weekly quota left -- the cap that actually binds.
+
+    /usage reports a weekly figure and a session figure; the weekly one is what
+    runs out. The baseline is calibrated against a real /usage reading rather
+    than guessed (see claude_usage.DEFAULT_WEEK_LIMIT_OUT).
+    """
+    data = ctx.get("usage")
+    if not data or "week" not in data:
+        return None
+    week = data["week"]
+    pct = week["pct_left"]
+    band = PCT_OK if pct >= 50 else PCT_WARN if pct >= 20 else PCT_LOW
+    sub = f"{claude_usage.fmt(week['out'])}/{claude_usage.fmt(week['limit'])}"
+    return (spec.get("label", "本周"), f"{pct:.0f}%", spec.get("sub", sub),
+            _accent(spec, band))
+
+
+def _provider_claude_week_reset(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
+    """Time until the weekly quota rolls over."""
+    data = ctx.get("usage")
+    if not data or "week" not in data:
+        return None
+    week = data["week"]
+    left = week["seconds_left"]
+    if left >= 86400:
+        days, hours = int(left // 86400), int((left % 86400) // 3600)
+        value = f"{days}天{hours}h" if hours else f"{days}天"
+    else:
+        hours, minutes = int(left // 3600), int((left % 3600) // 60)
+        value = f"{hours}h{minutes:02d}" if hours else f"{minutes}分"
+    # Under a day the reset is close enough to plan around.
+    band = PCT_WARN if left < 86400 else (0x1F, 0x7A, 0x8C)
+    sub = time.strftime("%m-%d %H:%M", time.localtime(week["reset"]))
+    return spec.get("label", "重置"), value, spec.get("sub", sub), _accent(spec, band)
+
+
 PROVIDERS: dict[str, Callable] = {
+    "claude_week_pct": _provider_claude_week_pct,
+    "claude_week_reset": _provider_claude_week_reset,
     "claude_pct": _provider_claude_pct,
     "claude_reset": _provider_claude_reset,
     "claude_usage": _provider_claude_usage,
@@ -195,7 +234,8 @@ PROVIDERS: dict[str, Callable] = {
 }
 
 # Which providers need the (comparatively slow) log scan.
-NEEDS_USAGE = {"claude_usage", "claude_pct", "claude_reset"}
+NEEDS_USAGE = {"claude_usage", "claude_pct", "claude_reset",
+               "claude_week_pct", "claude_week_reset"}
 
 
 class StatusUpdater:
@@ -214,6 +254,10 @@ class StatusUpdater:
 
         self.refresh = max(5, int(config.get("refresh", 60)))
         self.limit = int(config.get("limit", claude_usage.DEFAULT_LIMIT_OUT))
+        self.week_limit = int(config.get("week_limit",
+                                         claude_usage.DEFAULT_WEEK_LIMIT_OUT))
+        self.week_anchor = str(config.get("week_anchor",
+                                          claude_usage.DEFAULT_WEEK_ANCHOR))
         self._lock = threading.Lock()
         self._pending: dict[int, Image.Image] = {}
         self._last: dict[int, tuple] = {}
@@ -269,7 +313,7 @@ class StatusUpdater:
                 now = time.time()
                 if wants_usage and now - last_scan >= self.refresh:
                     with self._lock:
-                        self._ctx["usage"] = claude_usage.collect(self.limit)
+                        self._ctx["usage"] = claude_usage.collect(self.limit, self.week_limit, self.week_anchor)
                     last_scan = now
                 self._render_all()
             except Exception:
