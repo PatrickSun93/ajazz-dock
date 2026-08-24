@@ -5,6 +5,25 @@
 
   "brightness": 80,
 
+  // ---- 儿童锁 ---------------------------------------------------------
+  // 上锁后整块面板变成同一张锁图标，所有按键失效，只用来输入解锁序列。
+  //
+  // 为什么是序列不是长按：设备只报「按下」，输入帧里没有「松开」
+  // （见 device.py 的说明），所以没法给长按计时。序列是这个硬件
+  // 唯一能分辨的手势。
+  //
+  // code 是【按键编号】的顺序，不是图案 —— 锁上后每个键长得一模一样，
+  // 看不出解锁序列用了哪几个位置。
+  // 匹配用滑动窗口：小孩乱按一通之后，你再按对序列照样能解开。
+  //
+  // idle_minutes 设 0 = 不自动上锁。想要「你一离开就自动锁」就改成 10 之类。
+  "lock": {
+    "code": [1, 5, 9],
+    "image": "icons/locked.png",
+    "idle_minutes": 0,
+    "start_locked": false
+  },
+
   // ---- 状态栏（键盘上方那条，三格，从上到下 = 槽 16/17/18）--------------
   // 它只显示、不响应按键。
   //
@@ -113,8 +132,9 @@
          "8": { "image": "icons/cc_engloop.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/EngLoop" } },
          "9": { "image": "icons/cc_sched.png",    "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/personalAgent-wsl 'bash scripts/scheduler_run.sh'" } },
          "4": { "image": "icons/cc_shipflow.png", "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/shipflow" } },
-         "5": { "image": "icons/cc_brain.png",    "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/second-brain" } }
-        // 2, 6 本页留空。
+         "5": { "image": "icons/cc_brain.png",    "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/second-brain" } },
+         "6": { "image": "icons/lock_now.png",    "action": { "type": "lock" } }
+        // 2 本页留空。
       }
     },
     {

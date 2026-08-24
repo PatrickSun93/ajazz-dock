@@ -31,7 +31,7 @@ from typing import Any, Mapping, Optional
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-from . import actions, status
+from . import actions, lock, status
 from .config import Config
 from .device import KEYS, DockDevice, DockDisconnected
 
@@ -67,6 +67,11 @@ def _push_images(dock: DockDevice, key_map: Mapping[int, Mapping[str, Any]],
             print("[image] flush failed:")
             traceback.print_exc()
     return new_state
+
+
+def _lock_screen(child: "lock.ChildLock") -> dict:
+    """Every key shows the same tile, so which ones matter is not visible."""
+    return {key: {"image": child.image} for key in range(1, KEYS + 1)}
 
 
 def _resolve_page(target: Any, current: int, pages: list) -> int:
@@ -229,6 +234,12 @@ def main(config_path: str = "settings.json") -> int:
             if not skip_images:
                 image_state = _push_images(dock, pages[current_page]["keys"], image_state)
 
+            child = lock.ChildLock(data.get("lock"))
+            if child.configured:
+                print(f"[lock] 儿童锁已启用 —— {child.describe()}")
+            if child.locked and not skip_images:
+                image_state = _push_images(dock, _lock_screen(child), image_state)
+
             status_cfg = data.get("status")
             updater = status.StatusUpdater(status_cfg)
             if updater.enabled and not skip_images:
@@ -255,6 +266,13 @@ def main(config_path: str = "settings.json") -> int:
                         image_state = _push_images(
                             dock, pages[current_page]["keys"], image_state
                         )
+                        was_locked = child.locked
+                        child = lock.ChildLock(data.get("lock"))
+                        child.locked = was_locked and child.configured
+                        if child.locked:
+                            image_state = _push_images(
+                                dock, _lock_screen(child), image_state)
+
                         new_status = data.get("status")
                         if new_status != status_cfg:
                             # Slot set or interval changed -- the old thread's
@@ -277,6 +295,13 @@ def main(config_path: str = "settings.json") -> int:
                         for slot, tile in ready.items():
                             dock.set_image(slot, tile)
                         dock.flush()
+
+                    if child.should_auto_lock():
+                        child.lock()
+                        if not skip_images:
+                            image_state = _push_images(
+                                dock, _lock_screen(child), image_state)
+                        print("[lock] 空闲超时，已上锁")
 
                     key = dock.read_key(timeout_ms=100)
                 except DockDisconnected as exc:
@@ -303,6 +328,17 @@ def main(config_path: str = "settings.json") -> int:
                 if key is None:
                     continue
 
+                if child.locked:
+                    # Locked: presses only ever feed the unlock sequence.
+                    if child.feed(key):
+                        print("[lock] 已解锁")
+                        image_state = {k: None for k in range(1, KEYS + 1)}
+                        image_state = _push_images(
+                            dock, pages[current_page]["keys"], image_state)
+                    continue
+
+                child.note_activity()
+
                 spec = (pages[current_page]["keys"]).get(key)
                 if not spec:
                     print(f"key {key:>2}  (unbound)")
@@ -311,6 +347,14 @@ def main(config_path: str = "settings.json") -> int:
                 action = spec.get("action")
                 if not action:
                     print(f"key {key:>2}  (no action)")
+                    continue
+
+                if action.get("type") == "lock":
+                    child.lock()
+                    if child.locked:
+                        image_state = _push_images(
+                            dock, _lock_screen(child), image_state)
+                        print(f"key {key:>2}  -> 已上锁（{child.describe()}）")
                     continue
 
                 if action.get("type") == "page":

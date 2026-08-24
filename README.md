@@ -176,6 +176,32 @@ and sleeping the panel before it exits. `kill -9` skips all that and leaves the
 last page's icons glowing on a dock nothing is driving — use `./stop-dock.sh -f`
 only when it will not go quietly.
 
+### Child lock
+
+The dock sits within reach, and its keys stop services and quit applications.
+`lock` makes the panel inert until a sequence of key positions is entered:
+
+```jsonc
+"lock": {
+  "code": [1, 5, 9],           // key ids, in order
+  "image": "icons/locked.png",
+  "idle_minutes": 0,           // 0 disables auto-lock
+  "start_locked": false
+}
+```
+
+A key with `{ "type": "lock" }` locks on demand; page 3 key 6 carries one.
+
+**Why a sequence and not a long press:** the device reports presses only —
+there is no release event in the input frame — so there is nothing to time a
+hold against. A sequence is the only gesture this hardware can distinguish.
+
+While locked every key shows the same tile, so the panel gives away nothing
+about which positions the code uses. Matching runs over a sliding window, so a
+burst of random presses followed by the right sequence still opens it — which
+is the whole situation it exists for. A lock with no `code` refuses to engage
+rather than locking itself shut permanently.
+
 ### Stopping services
 
 The stack page carries three stop keys beyond the whole-stack one, because

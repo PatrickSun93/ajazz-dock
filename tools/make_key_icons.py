@@ -92,6 +92,11 @@ ICONS: dict[str, tuple[str, str, tuple[str, str]]] = {
     "svc_eng_kill":  ("exclamationmark.octagon.fill",          "止损",     ("#D8452C", "#7A1B08")),
     "svc_chart_stop": ("chart.xyaxis.line",                    "图停",     STOP),
 
+    # Child lock. Every key shows this tile while locked, so the panel gives
+    # away nothing about which positions the unlock sequence uses.
+    "locked":        ("lock.fill",                             "已锁",     ("#4A5058", "#1C2026")),
+    "lock_now":      ("lock.fill",                             "上锁",     ("#5E6670", "#2C333B")),
+
     # ---- P5 web ----
     "web_notebooklm": ("text.book.closed.fill", "NotebkLM", ("#5B8DEF", "#2C5AA8")),
     "web_gemini":     ("sparkles",              "Gemini",   ("#9B7EE0", "#5B3FA8")),
