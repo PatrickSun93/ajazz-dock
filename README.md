@@ -176,10 +176,32 @@ and sleeping the panel before it exits. `kill -9` skips all that and leaves the
 last page's icons glowing on a dock nothing is driving — use `./stop-dock.sh -f`
 only when it will not go quietly.
 
-### Closing Claude Code sessions
+### Stopping services
 
-`tools/close-claude-session.sh` closes the session running in a given project,
-matched by working directory (the command line is identical across all of them):
+The stack page carries three stop keys beyond the whole-stack one, because
+stopping EngLoop means stopping the Claude Code agents it runs inside tmux:
+
+| key | does |
+|---|---|
+| stack stop | `devstack.sh stop` — chart_server, bus, agents, forwarder |
+| Eng stop | `EngLoop/stop.sh` — graceful, sends each agent a SHUTDOWN_REQUEST and waits up to 660s for it to finish its round |
+| Eng 止损 | `EngLoop/stop.sh --now` — kills the tmux sessions outright |
+| chart stop | just the replay/chart server, leaving bus and agents alone |
+
+Graceful and `--now` are separate keys on purpose. The graceful path can take
+eleven minutes, and the case `--now` exists for — a broadcast storm burning
+through quota — is exactly the case where you cannot wait it out. Both run
+through iTerm so the countdown is visible; backgrounded, a graceful stop looks
+like the key did nothing.
+
+`personalAgent` is not on the page and `devstack.sh` does not touch it either:
+it runs under launchd, silently, and nothing signals that it stopped.
+
+### Closing individual Claude Code sessions
+
+`tools/close-claude-session.sh` is a command-line tool (no key bound) that
+closes the session running in a given project, matched by working directory
+since the command line is identical across all of them:
 
 ```bash
 ./tools/close-claude-session.sh --list                  # show, touch nothing

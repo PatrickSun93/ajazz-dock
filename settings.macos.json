@@ -132,8 +132,21 @@
          "8": { "image": "icons/activitymonitor.png", "action": { "type": "app", "target": "Activity Monitor" } },
          "9": { "image": "icons/svc_devsrv.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/web-apps/nodeTexeure 'npm run dev'" } },
          "4": { "image": "icons/ollama.png",       "action": { "type": "app",   "target": "Ollama" } },
-         "6": { "image": "icons/stack_stop.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh stop'" } }
-        // 2, 5, 15 本页留空。
+         "6": { "image": "icons/stack_stop.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems './devstack.sh stop'" } },
+
+        // ---- 单个服务的停止 ------------------------------------------------
+        // 15 = EngLoop 优雅停：给每个 agent 发 SHUTDOWN_REQUEST，等它们收尾，
+        //      最长 660 秒。所以走 iTerm，能看到倒计时；后台跑你会以为没反应。
+        //      停 tmux 会话 = 连带关掉 EngLoop 拉起的那几个 Claude Code。
+        "15": { "image": "icons/svc_eng_stop.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/EngLoop './stop.sh'" } },
+
+        // 5 = EngLoop 止损：stop.sh --now，直接 kill 会话，不等收尾。
+        //     给 2026-08-09 那种广播风暴用的 —— 烧额度的时候没工夫等优雅关停。
+        //     agent 手上没发出的东西会丢；消息不丢，还在 Redis 的 PEL 里。
+         "5": { "image": "icons/svc_eng_kill.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/run-in-iterm.sh /Volumes/externalssd/devitems/ai-agents/EngLoop './stop.sh --now'" } },
+
+        // 2 = 只停 chart_server（回放器），不动 bus 和 agent。
+         "2": { "image": "icons/svc_chart_stop.png", "action": { "type": "shell", "target": "pkill -f chart_server.py" } }
       }
     },
     {
@@ -153,33 +166,6 @@
          "5": { "image": "icons/web_hn.png",         "action": { "type": "url", "target": "https://news.ycombinator.com" } },
          "6": { "image": "icons/web_supabase.png",   "action": { "type": "url", "target": "https://supabase.com/dashboard" } },
          "2": { "image": "icons/futu.png",           "action": { "type": "app", "target": "富途牛牛" } }
-      }
-    },
-    {
-      // ── 第 6 页 · close —— 关闭 Claude Code 会话，键位对齐第 3 页 ────────
-      // 第 3 页哪个位置开某个项目的会话，这一页同一个位置就关它。
-      // 从第 1 页按一下 ◀ 就到这页（翻页循环）。
-      //
-      // ⚠️ 12 和 9 故意留空 —— 那是第 3 页的 personalAgent 和 定时(scheduler)。
-      //    邮件/日历 agent 静默后台跑，停了不会有任何现象告诉你，
-      //    等发现时已经漏了一批邮件。脚本里也硬编码了保护，
-      //    即使误配也关不掉它。devstack.sh 出于同样理由不管 personalagent。
-      //
-      // ⚠️ 7 = 关闭 devitems 根目录的会话。你要是正好在那儿跑 Claude Code，
-      //    按下去就是关掉你自己那个。
-      "name": "close",
-      "keys": {
-        "13": { "image": "icons/close_all.png",      "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh --all" } },
-        "14": { "image": "icons/close_nodetex.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/web-apps/nodeTexeure" } },
-        "15": { "image": "icons/close_palearn.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/learning/palearning" } },
-        "10": { "image": "icons/close_resume.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/resume" } },
-        "11": { "image": "icons/close_picron.png",   "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/trading-bots/PiCron" } },
-         "7": { "image": "icons/close_devitems.png", "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems" } },
-         "8": { "image": "icons/close_engloop.png",  "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/ai-agents/EngLoop" } },
-         "4": { "image": "icons/close_shipflow.png", "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/shipflow" } },
-         "5": { "image": "icons/close_brain.png",    "action": { "type": "shell", "target": "bash /Volumes/externalssd/devitems/tools/ajazzreplace/tools/close-claude-session.sh /Volumes/externalssd/devitems/second-brain" } }
-        // 9 和 12 永远留空：personalAgent / scheduler 不参与关闭。
-        // 2, 6 未用。
       }
     }
   ]

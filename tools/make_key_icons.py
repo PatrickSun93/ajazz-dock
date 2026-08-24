@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 from AppKit import NSImage, NSImageSymbolConfiguration, NSBitmapImageRep
-from PIL import Image, ImageDraw, ImageEnhance, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 SIZE = 256
 SYMBOL_FRAC = 0.44          # symbol height as a fraction of the tile
@@ -74,11 +74,6 @@ ICONS: dict[str, tuple[str, str, tuple[str, str]]] = {
     "cc_shipflow":   ("shippingbox.fill",                      "shipflow", CC),
     "cc_brain":      ("brain.head.profile",                    "二脑",      CC),
 
-    # Base for the page-6 "close everything" key. Same symbol as cc_all so the
-    # two pages line up, but the label has to say 全关, not 全开 -- reusing
-    # cc_all directly would put "open all" on the key that closes them.
-    "_base_close_all": ("square.grid.3x3.fill",                 "全关",      CC_HI),
-
     # ---- P4 dev stack ----
     "stack_start":   ("play.fill",                             "启动",      TEAL),
     "stack_status":  ("waveform.path.ecg",                     "状态",      TEAL),
@@ -87,6 +82,15 @@ ICONS: dict[str, tuple[str, str, tuple[str, str]]] = {
     "svc_chart":     ("chart.xyaxis.line",                     "8502",     SLATE),
     "svc_3000":      ("server.rack",                           "3000",     SLATE),
     "svc_devsrv":    ("hammer.fill",                           "dev",      SLATE),
+
+    # Service control. EngLoop gets two stop keys because its stop.sh has two
+    # modes: graceful waits up to 660s for agents to finish their round, and
+    # --now kills the tmux sessions outright. The second exists for the
+    # 2026-08-09 broadcast storm -- when you are burning quota there is no
+    # time to wait out a polite shutdown, so it needs its own key.
+    "svc_eng_stop":  ("point.3.connected.trianglepath.dotted", "Eng停",   STOP),
+    "svc_eng_kill":  ("exclamationmark.octagon.fill",          "止损",     ("#D8452C", "#7A1B08")),
+    "svc_chart_stop": ("chart.xyaxis.line",                    "图停",     STOP),
 
     # ---- P5 web ----
     "web_notebooklm": ("text.book.closed.fill", "NotebkLM", ("#5B8DEF", "#2C5AA8")),
@@ -97,6 +101,74 @@ ICONS: dict[str, tuple[str, str, tuple[str, str]]] = {
     "web_hn":         ("newspaper.fill",        "HN",       ("#FF8A3D", "#C24E08")),
     "web_supabase":   ("bolt.fill",             "Supabase", ("#4FD99A", "#1F8A5A")),
 }
+
+
+def _hex(value: str) -> tuple[int, int, int]:
+    value = value.lstrip("#")
+    return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def gradient(top: str, bottom: str) -> Image.Image:
+    """Vertical gradient. One-pixel column stretched, so it costs nothing."""
+    c1, c2 = _hex(top), _hex(bottom)
+    strip = Image.new("RGB", (1, SIZE))
+    draw = ImageDraw.Draw(strip)
+    for y in range(SIZE):
+        t = y / (SIZE - 1)
+        draw.point((0, y), tuple(round(a + (b - a) * t) for a, b in zip(c1, c2)))
+    return strip.resize((SIZE, SIZE), Image.BILINEAR)
+
+
+def symbol(name: str, point_size: int = 200) -> Image.Image | None:
+    """Render an SF Symbol to RGBA. It comes out black on transparent."""
+    image = NSImage.imageWithSystemSymbolName_accessibilityDescription_(name, None)
+    if image is None:
+        return None
+    config = NSImageSymbolConfiguration.configurationWithPointSize_weight_scale_(
+        point_size, WEIGHT_SEMIBOLD, SCALE_LARGE)
+    image = image.imageWithSymbolConfiguration_(config)
+    rep = NSBitmapImageRep.imageRepWithData_(image.TIFFRepresentation())
+    if rep is None:
+        return None
+    data = rep.representationUsingType_properties_(4, None)  # 4 = NSPNGFileType
+    return Image.open(io.BytesIO(bytes(data))).convert("RGBA")
+
+
+def tile(out: Path, sym_name: str, label: str, grad: tuple[str, str]) -> str:
+    canvas = gradient(*grad).convert("RGBA")
+
+    glyph = symbol(sym_name)
+    if glyph is None:
+        status = f"符号缺失({sym_name})"
+    else:
+        target = int(SIZE * SYMBOL_FRAC)
+        glyph.thumbnail((target, target), Image.LANCZOS)
+        # Use the glyph's alpha as a stencil and stamp it white, so it reads
+        # against the coloured ground instead of staying black-on-colour.
+        white = Image.new("RGBA", glyph.size, (255, 255, 255, 255))
+        white.putalpha(glyph.getchannel("A"))
+        canvas.alpha_composite(
+            white,
+            ((SIZE - glyph.width) // 2, int(SIZE * SYMBOL_CENTER_Y) - glyph.height // 2),
+        )
+        status = "OK"
+
+    draw = ImageDraw.Draw(canvas)
+    px = LABEL_PX
+    font = ImageFont.truetype(FONT, px)
+    while px > 18:
+        l, t, r, b = draw.textbbox((0, 0), label, font=font)
+        if (r - l) <= SIZE - 24:
+            break
+        px -= 3
+        font = ImageFont.truetype(FONT, px)
+    l, t, r, b = draw.textbbox((0, 0), label, font=font)
+    draw.text(((SIZE - (r - l)) / 2 - l, int(SIZE * LABEL_TOP_Y) - t),
+              label, font=font, fill=(255, 255, 255, 244))
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    canvas.convert("RGB").save(out)
+    return status
 
 
 def _hex(value: str) -> tuple[int, int, int]:
@@ -189,36 +261,6 @@ CLOSE_OF = {
 BADGE_RED = (198, 42, 32)
 
 
-def close_tile(out: Path, source: Path) -> str:
-    if not source.exists():
-        return f"源图标缺失({source.name})"
-    img = Image.open(source)
-    if img.mode != "RGB":
-        img = img.convert("RGBA")
-        img = Image.alpha_composite(
-            Image.new("RGBA", img.size, (0, 0, 0, 255)), img).convert("RGB")
-    img = img.resize((SIZE, SIZE), Image.LANCZOS)
-    img = ImageEnhance.Brightness(img).enhance(0.5)
-
-    draw = ImageDraw.Draw(img)
-    radius = int(SIZE * 0.235)
-    # Top-right, not bottom-right: the source tiles carry their label along the
-    # bottom, and a badge down there covers the one word telling you which
-    # session the key closes.
-    margin = int(SIZE * 0.045)
-    cx = SIZE - radius - margin
-    cy = radius + margin
-    draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius],
-                 fill=BADGE_RED, outline=(255, 255, 255), width=int(SIZE * 0.022))
-    arm = int(radius * 0.44)
-    width = int(SIZE * 0.045)
-    draw.line([cx - arm, cy - arm, cx + arm, cy + arm], fill="white", width=width)
-    draw.line([cx - arm, cy + arm, cx + arm, cy - arm], fill="white", width=width)
-
-    img.save(out)
-    return "OK"
-
-
 def main(argv: list[str]) -> int:
     want = set(argv)
     made = failed = 0
@@ -231,22 +273,6 @@ def main(argv: list[str]) -> int:
         else:
             failed += 1
             print(f"  ⚠ {name}: {status}")
-    for name, src in CLOSE_OF.items():
-        if want and name not in want:
-            continue
-        status = close_tile(ICONS_DIR / f"{name}.png", ICONS_DIR / f"{src}.png")
-        if status == "OK":
-            made += 1
-        else:
-            failed += 1
-            print(f"  ⚠ {name}: {status}")
-
-    # The base tile is scaffolding, not a key image.
-    scaffold = ICONS_DIR / "_base_close_all.png"
-    if scaffold.exists() and not want:
-        scaffold.unlink()
-        made -= 1
-
     print(f"{made} 个图标已生成" + (f", {failed} 个符号名无效" if failed else "")
           + f"  ->  {ICONS_DIR}")
     return 1 if failed else 0
