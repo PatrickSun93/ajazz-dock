@@ -344,6 +344,30 @@ top to bottom. They take images exactly like keys but never report input.
 Numbers come from `~/.claude/projects/*/*.jsonl`, which Claude Code appends a
 record to per message.
 
+### Real numbers, not estimates
+
+Since Claude Code 2.1.x the JSON handed to a statusline command on stdin
+carries a `rate_limits` block for Pro/Max subscribers — the same figures
+`/usage` prints, with no API call. That is the only place they exist outside
+`/usage` itself. `tools/statusline-usage.py` captures it every turn into
+`~/.claude/rate-limits.json`, and the strip reads that.
+
+```bash
+cp tools/statusline-usage.py ~/.claude/
+# then in ~/.claude/settings.json:
+#   "statusLine": {"type": "command",
+#                  "command": "/usr/bin/python3 /Users/<you>/.claude/statusline-usage.py"}
+```
+
+Keep it in `~/.claude/`, not in the repo: this checkout lives on an external
+volume, and a statusline command that cannot be read takes the terminal's
+status line down with it.
+
+The estimator below stays as the fallback — no hook installed, an older Claude
+Code, a Console account, or no session recent enough to have refreshed the
+snapshot (older than 30 minutes is treated as stale). Estimated figures are
+prefixed `~` on the tile so a guess is never read as the real thing.
+
 **The cap that binds is weekly, not the 5h window.** `/usage` reports both;
 the weekly line is the one that runs out. The default slots show weekly.
 

@@ -295,6 +295,9 @@ def main(config_path: str = "settings.json") -> int:
                         for slot, tile in ready.items():
                             dock.set_image(slot, tile)
                         dock.flush()
+                        # Without this there is no way to tell "the strip is
+                        # not refreshing" from "the numbers have not changed".
+                        print(f"[status] 已推送槽 {sorted(ready)}")
 
                     if child.should_auto_lock():
                         child.lock()

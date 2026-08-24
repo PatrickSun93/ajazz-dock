@@ -56,9 +56,9 @@
     "week_limit": 27900000,
     "week_anchor": "2026-08-28T17:00:00",
     "slots": {
-      "16": { "type": "claude_week_pct" },
-      "17": { "type": "claude_week_reset" },
-      "18": { "type": "claude_usage", "window": "today" }
+      "16": { "type": "claude_pct" },
+      "17": { "type": "claude_reset" },
+      "18": { "type": "claude_week_pct", "label": "本周" }
     }
   },
 

@@ -32,7 +32,7 @@ from typing import Any, Callable, Mapping
 
 from PIL import Image, ImageDraw, ImageFont
 
-from . import claude_usage
+from . import claude_usage, live_limits
 
 SLOT_MIN, SLOT_MAX = 16, 18
 SIZE = 256
@@ -152,25 +152,50 @@ def _accent(spec, fallback):
 PCT_OK, PCT_WARN, PCT_LOW = (0x2E, 0x6B, 0x4F), (0xB0, 0x7A, 0x1E), (0xA8, 0x37, 0x22)
 
 
-def _provider_claude_pct(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
-    """Share of the configured 5h output budget still unspent.
+def _band(pct: float):
+    return PCT_OK if pct >= 50 else PCT_WARN if pct >= 20 else PCT_LOW
 
-    The budget is a user-supplied baseline, not a real quota -- see
-    claude_usage.DEFAULT_LIMIT_OUT for why one cannot be read from disk.
+
+def _provider_claude_pct(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
+    """Share of the 5h quota left.
+
+    Prefers the real figure published by the statusline hook. Falls back to the
+    token estimate against a hand-set baseline, and marks it with ~ so a guess
+    is never mistaken for the real thing.
     """
+    live = (ctx.get("live") or {}).get("five_hour")
+    if live:
+        sub = (time.strftime("%H:%M", time.localtime(live["reset"]))
+               if live.get("reset") else "实时")
+        return (spec.get("label", "5H"), f"{live['pct_left']:.0f}%",
+                spec.get("sub", sub), _accent(spec, _band(live["pct_left"])))
+
     data = ctx.get("usage")
     if not data or "window" not in data:
         return None
     window = data["window"]
     pct = window["pct_left"]
-    band = PCT_OK if pct >= 50 else PCT_WARN if pct >= 20 else PCT_LOW
-    sub = f"{claude_usage.fmt(window['out'])}/{claude_usage.fmt(window['limit'])}"
-    return (spec.get("label", "剩余"), f"{pct:.0f}%", spec.get("sub", sub),
-            _accent(spec, band))
+    sub = f"~{claude_usage.fmt(window['out'])}/{claude_usage.fmt(window['limit'])}"
+    return (spec.get("label", "5H~"), f"{pct:.0f}%", spec.get("sub", sub),
+            _accent(spec, _band(pct)))
+
+
+def _fmt_left(seconds: float) -> str:
+    minutes = int(seconds // 60)
+    if minutes >= 60:
+        return f"{minutes // 60}h{minutes % 60:02d}"
+    return f"{minutes}分"
 
 
 def _provider_claude_reset(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
-    """Time left on the current rolling 5h window."""
+    """Time left on the current 5h window."""
+    live = (ctx.get("live") or {}).get("five_hour")
+    if live and live.get("seconds_left") is not None:
+        left = live["seconds_left"]
+        band = PCT_LOW if left <= 1800 else _accent(spec, (0x1F, 0x7A, 0x8C))
+        return (spec.get("label", "重置"), _fmt_left(left),
+                time.strftime("%H:%M", time.localtime(live["reset"])), band)
+
     data = ctx.get("usage")
     if not data or "window" not in data:
         return None
@@ -179,7 +204,7 @@ def _provider_claude_reset(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
     if not window["open"]:
         return label, "空闲", "窗口未开", _accent(spec, DEFAULT_ACCENT)
     minutes = int(window["seconds_left"] // 60)
-    value = f"{minutes // 60}h{minutes % 60:02d}" if minutes >= 60 else f"{minutes}分"
+    value = _fmt_left(window["seconds_left"])
     # Under 30 minutes the reset is the thing you are waiting for, so flag it.
     band = PCT_LOW if minutes <= 30 else _accent(spec, (0x1F, 0x7A, 0x8C))
     sub = time.strftime("%H:%M", time.localtime(window["reset"]))
@@ -193,14 +218,24 @@ def _provider_claude_week_pct(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
     runs out. The baseline is calibrated against a real /usage reading rather
     than guessed (see claude_usage.DEFAULT_WEEK_LIMIT_OUT).
     """
+    live = (ctx.get("live") or {}).get("seven_day")
+    if live:
+        sub = (time.strftime("%m-%d %H:%M", time.localtime(live["reset"]))
+               if live.get("reset") else "实时")
+        return (spec.get("label", "本周"), f"{live['pct_left']:.0f}%",
+                spec.get("sub", sub), _accent(spec, _band(live["pct_left"])))
+
     data = ctx.get("usage")
     if not data or "week" not in data:
         return None
     week = data["week"]
     pct = week["pct_left"]
-    band = PCT_OK if pct >= 50 else PCT_WARN if pct >= 20 else PCT_LOW
-    sub = f"{claude_usage.fmt(week['out'])}/{claude_usage.fmt(week['limit'])}"
-    return (spec.get("label", "本周"), f"{pct:.0f}%", spec.get("sub", sub),
+    band = _band(pct)
+    sub = f"~{claude_usage.fmt(week['out'])}/{claude_usage.fmt(week['limit'])}"
+    # One decimal place. Against a ~28M denominator a whole percent is about
+    # half a day of work, so an integer reading sits still long enough to look
+    # broken.
+    return (spec.get("label", "本周"), f"{pct:.1f}%", spec.get("sub", sub),
             _accent(spec, band))
 
 
@@ -315,6 +350,9 @@ class StatusUpdater:
                     with self._lock:
                         self._ctx["usage"] = claude_usage.collect(self.limit, self.week_limit, self.week_anchor)
                     last_scan = now
+                snapshot = live_limits.read()
+                with self._lock:
+                    self._ctx["live"] = snapshot
                 self._render_all()
             except Exception:
                 print("[status] 刷新失败:")
