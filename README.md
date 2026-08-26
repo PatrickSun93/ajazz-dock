@@ -2,16 +2,18 @@
 
 Host driver and key launcher for the **Ajazz AKP153E** 15-key dock.
 
-- Reads `settings.json` (JSONC — comments and trailing commas allowed)
-- Pushes per-key icons to the LCD
+- Reads a JSONC config (comments and trailing commas allowed)
+- Pushes per-key icons to the LCD, and live figures to the status strip above the keys
 - Listens for key presses and dispatches actions (URLs, apps, hotkeys, text, shell, macros)
-- **Hot reloads** on save — edit `settings.json` and changes apply instantly
+- **Hot reloads** on save — edit the config and changes apply instantly
+- Survives the device going away: reconnects instead of dying
+- Optional child lock, because the keys stop services and quit applications
 
 This is a clean-room reimplementation. No vendor software required.
 
 ---
 
-## Setting up on a new computer
+## Which platform
 
 Runs on **Windows and macOS**. The HID protocol is identical on both; what
 differs is how actions are carried out, which lives in a per-platform backend
@@ -20,12 +22,12 @@ differs is how actions are carried out, which lives in a per-platform backend
 | | Windows | macOS |
 |---|---|---|
 | config | `settings.json` | `settings.macos.json` |
-| launch | `start-dock.bat` | `start-dock.sh` |
+| launch | `start-dock.bat` | `start-dock.sh` / `stop-dock.sh` |
 | open URL | `os.startfile` | `open` |
 | launch app | `subprocess.Popen` | `open -a` / `open -b` |
 | hotkeys / typing | `keyboard` | `pynput` (needs Accessibility) |
 | autostart | Startup folder (`.ps1`) | LaunchAgent (`.sh`) |
-| icon extraction | `extract_icons.ps1` | `extract_icons_macos.py` |
+| icon extraction | `extract_icons.ps1` | `extract_icons_macos.py` + `make_key_icons.py` |
 
 Jump to [macOS setup](#macos-setup) if that is your host.
 
@@ -176,88 +178,6 @@ and sleeping the panel before it exits. `kill -9` skips all that and leaves the
 last page's icons glowing on a dock nothing is driving — use `./stop-dock.sh -f`
 only when it will not go quietly.
 
-### Child lock
-
-The dock sits within reach, and its keys stop services and quit applications.
-`lock` makes the panel inert until a sequence of key positions is entered:
-
-```jsonc
-"lock": {
-  "code": [1, 5, 9],           // key ids, in order
-  "image": "icons/locked.png",
-  "idle_minutes": 0,           // 0 disables auto-lock
-  "start_locked": false
-}
-```
-
-A key with `{ "type": "lock" }` locks on demand; page 3 key 6 carries one.
-
-**Why a sequence and not a long press:** the device reports presses only —
-there is no release event in the input frame — so there is nothing to time a
-hold against. A sequence is the only gesture this hardware can distinguish.
-
-The default code is the row nearest you, left to right. Which key ids those
-are depends on which way round the dock sits: with the status strip at the top
-(strip furthest from you) the near row is 13-14-15, and page 1 has Chrome /
-iTerm / Zed there.
-
-Locked presses are logged with a progress bar (`● ● ○  2/3`), because a panel
-that shows nothing back is unusable to press into — you cannot tell a key that
-did not register from a code you are entering wrong.
-
-**Forgotten the code?** Restart the dock: `./stop-dock.sh && ./start-dock.sh`.
-`start_locked` defaults to false, so it comes back unlocked. The lock exists to
-stop small hands, not to survive someone with a terminal.
-
-While locked every key shows the same tile, so the panel gives away nothing
-about which positions the code uses. Matching runs over a sliding window, so a
-burst of random presses followed by the right sequence still opens it — which
-is the whole situation it exists for. A lock with no `code` refuses to engage
-rather than locking itself shut permanently.
-
-### Stopping services
-
-The stack page carries three stop keys beyond the whole-stack one, because
-stopping EngLoop means stopping the Claude Code agents it runs inside tmux:
-
-| key | does |
-|---|---|
-| stack stop | `devstack.sh stop` — chart_server, bus, agents, forwarder |
-| Eng stop | `EngLoop/stop.sh` — graceful, sends each agent a SHUTDOWN_REQUEST and waits up to 660s for it to finish its round |
-| Eng 止损 | `EngLoop/stop.sh --now` — kills the tmux sessions outright |
-| chart stop | just the replay/chart server, leaving bus and agents alone |
-
-Graceful and `--now` are separate keys on purpose. The graceful path can take
-eleven minutes, and the case `--now` exists for — a broadcast storm burning
-through quota — is exactly the case where you cannot wait it out. Both run
-through iTerm so the countdown is visible; backgrounded, a graceful stop looks
-like the key did nothing.
-
-`personalAgent` is not on the page and `devstack.sh` does not touch it either:
-it runs under launchd, silently, and nothing signals that it stopped.
-
-### Closing individual Claude Code sessions
-
-`tools/close-claude-session.sh` is a command-line tool (no key bound) that
-closes the session running in a given project, matched by working directory
-since the command line is identical across all of them:
-
-```bash
-./tools/close-claude-session.sh --list                  # show, touch nothing
-./tools/close-claude-session.sh /path/to/project
-./tools/close-claude-session.sh --all
-```
-
-Two things it refuses to close:
-
-- **Anything under `personalAgent-wsl`.** The mail/calendar agent runs silently
-  and nothing signals that it stopped — you find out by noticing a batch of
-  unprocessed mail. Hardcoded, so a bad config cannot reach it either. There is
-  no key for it on page 6, and `--all` skips it.
-- **The VS Code extension helper**, whose argv points into `.vscode/extensions`.
-  It shares the `claude` process name with real sessions, but closing it only
-  breaks the editor integration.
-
 ### 5. (Optional) Start at login
 
 ```bash
@@ -268,89 +188,54 @@ Two things it refuses to close:
 Installs a **LaunchAgent**, not a LaunchDaemon — agents run inside your login
 session and can therefore launch apps onto your desktop, which is the same
 reason the Windows side uses the Startup folder instead of a Service.
+`KeepAlive` restarts the runner if it exits, so a dock plugged in after login
+gets picked up rather than staying dark.
+
+On an external volume this needs Full Disk Access for the *interpreter* — see
+[macOS gotchas](#macos-gotchas). The installer detects the failure and prints
+the exact path to grant.
 
 ---
 
-## macOS gotchas
+## Features
 
-Three things that cost real time to work out:
-
-**`shell` actions run under non-interactive `/bin/sh`, so shell aliases do not
-exist.** An alias defined in `~/.zshrc` — `claude7`, say — is simply not there.
-Call the script by absolute path.
-
-**`keys` and `text` actions fail silently without Accessibility permission.**
-No error, no prompt, nothing happens — indistinguishable from an unbound key.
-Grant it to whatever launched the dock (your terminal, or the launchd process
-if it is autostarting), then **restart the dock**: pynput caches the permission
-state at process start.
-
-**launchd does not read your shell profile.** A LaunchAgent gets a minimal
-`PATH`, so `claude` and everything under homebrew disappear from `shell`
-actions. `install_autostart_macos.sh` sets `PATH` explicitly for this reason.
-
-**Autostarting a checkout on an external volume needs Full Disk Access — for
-the interpreter, not for the plist.** TCC grants that permission per
-executable, which makes the failure confusing to diagnose:
-
-- If `/bin/bash` is already granted, it can `cd` into the volume and open the
-  log there, so the plist looks completely healthy.
-- `python` is a separate binary with separate permission. Without it, it cannot
-  read the `.py` files or site-packages off the volume — the process starts and
-  then writes nothing at all, or the job exits `EX_CONFIG` with an empty log.
-
-Grant it to the interpreter's real path, which for a venv is the framework it
-symlinks to, not the venv's own `bin/python`:
-
-```bash
-./.venv/bin/python -c 'import os,sys; print(os.path.realpath(sys.executable))'
-# /opt/homebrew/Cellar/python@3.14/*/Frameworks/Python.framework/Versions/3.14/bin/python3.14
-# add the sibling Resources/Python.app under Full Disk Access
-```
-
-`install_autostart_macos.sh` detects the failure and prints the exact path
-rather than leaving a silent one. Skipping the grant is fine — run the dock
-manually; it just will not come back after a reboot.
-
----
-
-## Status strip
+### Status strip
 
 Above the 15 keys are three display-only slots — logical slots **16, 17, 18**,
-top to bottom. They take images exactly like keys but never report input.
+top to bottom. They take images exactly like keys but never report input. The
+protocol always addressed them; the runner just never used to.
 
 ```jsonc
 "status": {
   "refresh": 60,
-  "limit": 2500000,
   "slots": {
-    "16": { "type": "claude_pct" },      // % of the 5h output budget left
-    "17": { "type": "claude_reset" },    // time until the 5h window resets
-    "18": { "type": "claude_usage", "window": "today" }
+    "16": { "type": "claude_pct" },        // 5h quota left
+    "17": { "type": "claude_reset" },      // countdown to the 5h reset
+    "18": { "type": "claude_week_pct" }    // weekly quota left
   }
 }
 ```
 
 | provider | shows |
 |---|---|
-| `claude_week_pct` | share of the **weekly** quota left — the cap that actually binds |
+| `claude_pct` | share of the 5h quota left; band turns amber under 50%, red under 20% |
+| `claude_reset` | time until the 5h window resets; red under 30 minutes |
+| `claude_week_pct` | share of the weekly quota left |
 | `claude_week_reset` | time until the weekly quota rolls over |
-| `claude_pct` | share of `limit` unspent this 5h window; band turns amber under 50%, red under 20% |
-| `claude_reset` | minutes until the 5h window resets; red under 30 minutes |
-| `claude_usage` | raw totals for `5h` / `today` / `7d`, metric selectable via `metric` |
+| `claude_usage` | raw token totals for `5h` / `today` / `7d`, metric selectable via `metric` |
 | `page` | current page name and index |
 | `clock` | time and date |
 
-Numbers come from `~/.claude/projects/*/*.jsonl`, which Claude Code appends a
-record to per message.
+Refreshing never writes to the device from the worker thread: it renders tiles
+into a queue that the main loop drains, keeping every HID write on one thread.
 
-### Real numbers, not estimates
+#### Where the numbers come from
 
-Since Claude Code 2.1.x the JSON handed to a statusline command on stdin
-carries a `rate_limits` block for Pro/Max subscribers — the same figures
-`/usage` prints, with no API call. That is the only place they exist outside
-`/usage` itself. `tools/statusline-usage.py` captures it every turn into
-`~/.claude/rate-limits.json`, and the strip reads that.
+**Preferred: the real figures.** Since Claude Code 2.1.x the JSON handed to a
+statusline command on stdin carries a `rate_limits` block for Pro/Max
+subscribers — the same figures `/usage` prints, with no API call. That is the
+only place they exist outside `/usage` itself: nothing is written to disk, and
+the CLI has no `usage` subcommand.
 
 ```bash
 cp tools/statusline-usage.py ~/.claude/
@@ -359,41 +244,149 @@ cp tools/statusline-usage.py ~/.claude/
 #                  "command": "/usr/bin/python3 /Users/<you>/.claude/statusline-usage.py"}
 ```
 
-Keep it in `~/.claude/`, not in the repo: this checkout lives on an external
-volume, and a statusline command that cannot be read takes the terminal's
-status line down with it.
+It captures the block every turn into `~/.claude/rate-limits.json`, which the
+strip reads. Keep the script in `~/.claude/`, not in the repo: this checkout may
+live on an external volume, and a statusline command that cannot be read takes
+the terminal's status line down with it.
 
-The estimator below stays as the fallback — no hook installed, an older Claude
-Code, a Console account, or no session recent enough to have refreshed the
-snapshot (older than 30 minutes is treated as stale). Estimated figures are
-prefixed `~` on the tile so a guess is never read as the real thing.
+**Fallback: an estimate.** With no hook installed, an older Claude Code, a
+Console account, or a snapshot older than 30 minutes, the strip falls back to
+summing `usage` blocks out of `~/.claude/projects/*/*.jsonl` and dividing by a
+calibrated baseline. Estimated tiles are prefixed `~` so a guess is never read
+as a measurement.
 
-**The cap that binds is weekly, not the 5h window.** `/usage` reports both;
-the weekly line is the one that runs out. The default slots show weekly.
+Calibrate the baseline by pinning one real reading against local totals — on
+2026-08-24, `/usage` reported 39% of the week used against 10.3M output tokens,
+putting 100% near 27.9M (`week_limit`). Output tokens are a *proxy* for whatever
+Anthropic actually weighs, so redo this if the strip and `/usage` drift apart.
 
-**`week_limit` is calibrated, not guessed.** No quota is stored anywhere on
-disk — not in the logs, not elsewhere under `~/.claude`, and the CLI has no
-`usage` subcommand; `/usage` reads it live and never writes it down. So the
-baseline comes from pinning one real reading against the local totals: on
-2026-08-24 `/usage` reported 37% of the week used, and the logs showed 10.31M
-output tokens spent into that period, putting 100% near 27.9M. Output tokens
-are a *proxy* for whatever Anthropic actually weighs, so recalibrate the same
-way whenever the strip and `/usage` drift apart.
+`week_anchor` is one observed reset instant; periods repeat every 7 days from
+it, forwards and backwards, so it never needs updating.
 
-**Reset times are exact.** `week_anchor` is one observed reset instant and
-periods repeat every 7 days from it, so it never needs updating. The 5h chain
-is reconstructible too: a window opens on a message, lapses five hours later,
-and the next message after that opens a fresh one.
+### Child lock
 
-Refreshing never writes to the device from the worker thread: it renders tiles
-into a queue that the main loop drains, keeping every HID write on one thread.
+The dock sits within reach, and its keys stop services and quit applications.
+`lock` makes the panel inert until a sequence of key positions is entered.
+
+```jsonc
+"lock": {
+  "code": [13, 14, 15],        // key ids, in order
+  "image": "icons/locked.png",
+  "idle_minutes": 0,           // 0 disables auto-lock
+  "start_locked": false
+}
+```
+
+A key with `{ "type": "lock" }` locks on demand.
+
+**Why a sequence and not a long press:** the device reports presses only —
+there is no release event in the input frame — so there is nothing to time a
+hold against. A sequence is the only gesture this hardware can distinguish.
+
+The default code is the row nearest you, left to right. Which key ids those are
+depends on which way round the dock sits: with the status strip at the top
+(strip furthest from you) the near row is 13-14-15.
+
+While locked every key shows the same tile, so the panel gives away nothing
+about which positions the code uses. Matching runs over a sliding window, so a
+burst of random presses followed by the right sequence still opens it — which
+is the whole situation it exists for. A lock with no `code` refuses to engage
+rather than locking itself shut permanently, and a config reload keeps the
+locked state.
+
+Locked presses are logged with a progress bar (`● ● ○  2/3`), because a panel
+that shows nothing back is unusable to press into — you cannot tell a key that
+did not register from a code you are entering wrong.
+
+**Forgotten the code?** Restart the dock: `./stop-dock.sh && ./start-dock.sh`.
+`start_locked` defaults to false, so it comes back unlocked. This stops a
+four-year-old, not anyone holding a terminal.
+
+### Stopping services
+
+Stopping a service means stopping whatever it spawned — for a tmux-based agent
+runner, that includes the Claude Code sessions inside it. Bind those to `shell`
+actions running through `tools/run-in-iterm.sh` so the output stays visible; a
+backgrounded stop that takes minutes looks identical to a key that did nothing.
+
+Graceful and immediate stops deserve **separate keys**. A graceful shutdown that
+waits for agents to finish their round can take many minutes, and the situation
+that calls for an immediate one — a runaway loop burning quota — is exactly the
+situation where you cannot wait it out.
+
+### Closing individual Claude Code sessions
+
+`tools/close-claude-session.sh` is a command-line tool (no key bound by default)
+that closes the session running in a given project, matched by working directory
+since the command line is identical across all of them:
+
+```bash
+./tools/close-claude-session.sh --list                  # show, touch nothing
+./tools/close-claude-session.sh /path/to/project
+./tools/close-claude-session.sh --all
+```
+
+Two things it refuses to close:
+
+- **Anything under a protected path** (`PROTECTED_DIRS` in the script). A
+  background agent that runs silently gives no sign that it stopped — you find
+  out later, from the work it did not do. Hardcoded, so a bad config cannot
+  reach it either, and `--all` skips it.
+- **The VS Code extension helper**, whose argv points into `.vscode/extensions`.
+  It shares the `claude` process name with real sessions, but closing it only
+  breaks the editor integration.
 
 ---
 
-## settings.json
+<a name="macos-gotchas"></a>
+## macOS gotchas
 
-Looks just like Windows Terminal's settings file: JSONC with a `$schema` link
-that gives VS Code autocomplete and validation.
+Four things that cost real time to work out.
+
+**`shell` actions run under non-interactive `/bin/sh`, so shell aliases do not
+exist.** An alias defined in `~/.zshrc` is simply not there. Call the script by
+absolute path.
+
+**`keys` and `text` actions fail silently without Accessibility permission.**
+No error, no prompt, nothing happens — indistinguishable from an unbound key.
+Grant it to whatever launched the dock (your terminal, or the launchd process
+if it is autostarting), then **restart the dock**: pynput caches the permission
+state at process start.
+
+**launchd does not read your shell profile.** A LaunchAgent gets a minimal
+`PATH`, so homebrew and `~/.local/bin` disappear from `shell` actions.
+`install_autostart_macos.sh` sets `PATH` explicitly for this reason.
+
+**Autostarting a checkout on an external volume needs Full Disk Access — for
+the interpreter, not for the plist.** TCC grants that permission per
+executable, which makes the failure confusing to diagnose:
+
+- If `/bin/bash` is already granted, it can `cd` into the volume and open a log
+  there, so the plist looks completely healthy. A probe running `date` writes
+  fine, which sends you looking in the wrong place.
+- `python` is a separate binary with separate permission. Without it, it cannot
+  read the `.py` files or site-packages off the volume — the process starts and
+  writes *nothing at all*. Not an error, not a traceback. It reads like a hang.
+
+Grant it to the interpreter's real path, which for a venv is the framework it
+symlinks to, not the venv's own `bin/python`:
+
+```bash
+./.venv/bin/python -c 'import os,sys; print(os.path.realpath(sys.executable))'
+# add the sibling Resources/Python.app under Full Disk Access
+```
+
+Separately, nothing in the plist should name a path on that volume:
+`WorkingDirectory` and `StandardOutPath` are accesses **launchd itself**
+performs, and either one pointing at a removable volume kills the job with
+`EX_CONFIG` before the program runs, log empty. Let bash do the `cd` and the
+redirect — which is what `install_autostart_macos.sh` generates.
+
+---
+
+## Config reference
+
+JSONC with a `$schema` link that gives VS Code autocomplete and validation.
 
 ```jsonc
 {
@@ -408,16 +401,22 @@ that gives VS Code autocomplete and validation.
 
 ### Key layout
 
-Column-major, numbered so they match physical position when the dock sits upright:
+Column-major from the bottom-left:
 
 ```
  col1  col2  col3
-  13    14    15   <- row 1 (top)
+  13    14    15
   10    11    12
    7     8     9
    4     5     6
-   1     2     3   <- row 5 (bottom)
+   1     2     3
 ```
+
+Which end is "top" depends on how the dock sits. The numbering above assumes
+the status strip is at the **bottom**. Sitting it the other way round — strip at
+the top, which is the natural reading order — puts 1/2/3 nearest the strip and
+13/14/15 nearest your hand. Nothing in the software cares; just be consistent
+about which orientation your icons and lock code assume.
 
 ### Binding fields
 
@@ -428,25 +427,33 @@ Column-major, numbered so they match physical position when the dock sits uprigh
 
 Omit `image` to leave the LCD dark. Omit `action` to make the key a no-op.
 
+Images with transparency are flattened onto black or white depending on how
+dark the artwork is, measured over the opaque pixels — a black-on-transparent
+logo composited onto black would otherwise vanish entirely.
+
 ### Action types
 
 | type    | fields                          | example                                                                  |
 |---------|---------------------------------|--------------------------------------------------------------------------|
 | `url`   | `target`                        | `{ "type": "url", "target": "https://github.com" }`                      |
-| `app`   | `target`, `args?`               | `{ "type": "app", "target": "C:\\Windows\\System32\\notepad.exe" }`      |
+| `app`   | `target`, `args?`               | `{ "type": "app", "target": "Google Chrome" }`                           |
 | `keys`  | `target` (hotkey combo)         | `{ "type": "keys", "target": "ctrl+shift+f" }`                           |
 | `text`  | `target` (literal text)         | `{ "type": "text", "target": "hello world" }`                            |
-| `shell` | `target` (shell command line)   | `{ "type": "shell", "target": "rundll32.exe user32.dll,LockWorkStation" }` |
+| `shell` | `target` (shell command line)   | `{ "type": "shell", "target": "open ~/Downloads" }`                      |
 | `macro` | `steps` (array of actions or `{delay: N}`) | see below                                                     |
 | `page`  | `target` (`"next"`/`"prev"`/name/index)    | `{ "type": "page", "target": "next" }`                        |
+| `lock`  | none                            | `{ "type": "lock" }` — engage the child lock                             |
 
-Macro example — open Notepad, wait, type, press Enter:
+On macOS an `app` target may be an application name, a `.app` path, a bundle id
+(`open -b`), or a plain executable path (run directly).
+
+Macro example — open an editor, wait, type, press Enter:
 
 ```jsonc
 {
   "type": "macro",
   "steps": [
-    { "type": "app",  "target": "notepad.exe" },
+    { "type": "app",  "target": "TextEdit" },
     { "delay": 0.6 },
     { "type": "text", "target": "macro fired" },
     { "type": "keys", "target": "enter" }
@@ -487,7 +494,7 @@ host-side, no special device mode.
 
 ## VS Code tip
 
-With the `$schema` line in `settings.json`, VS Code highlights invalid actions,
+With the `$schema` line in your config, VS Code highlights invalid actions,
 autocompletes field names, and shows inline descriptions on hover. No extension
 needed.
 
@@ -502,6 +509,7 @@ needed.
 | `DOCK_DEBUG=1`      | Dump unrecognized HID input frames to stderr                 |
 | `DOCK_IMAGE_W/H`    | Override image size (default 95×95)                          |
 | `DOCK_IMAGE_ROTATE` | Rotate before sending (default 90°)                          |
+| `PYTHON`            | Interpreter used by `start-dock.sh`                          |
 
 ---
 
@@ -509,15 +517,35 @@ needed.
 
 ```
 ajazz_dock/
-    __init__.py      # public API: DockDevice, Config, actions
-    __main__.py      # python -m ajazz_dock entry
-    device.py        # HID protocol (CRT\0\0 commands, JPEG image push)
-    actions.py       # action dispatcher (url/app/keys/text/shell/macro)
-    config.py        # JSONC loader + thread-safe Config holder
-    runner.py        # main loop: hot reload, image diffing, key dispatch
-settings.json        # your config
-settings.schema.json # JSON schema for VS Code autocomplete
-icons/               # your icon files
+    __init__.py         # public API: DockDevice, Config, actions
+    __main__.py         # python -m ajazz_dock entry
+    device.py           # HID protocol (CRT\0\0 commands, JPEG push, reconnect)
+    actions.py          # action dispatcher + platform backend selection
+    backend_darwin.py   # macOS: open / open -a / pynput
+    backend_win32.py    # Windows: os.startfile / Popen / keyboard
+    config.py           # JSONC loader + thread-safe Config holder
+    runner.py           # main loop: hot reload, image diffing, key dispatch
+    status.py           # status strip (slots 16-18): providers + render + worker
+    live_limits.py      # real rate limits, published by the statusline hook
+    claude_usage.py     # token totals from session logs (the fallback estimate)
+    lock.py             # child lock: unlock sequence, auto-lock
+tools/
+    statusline-usage.py         # Claude Code statusline hook -> rate-limits.json
+    run-in-iterm.sh             # open an iTerm window and run something in it
+    close-claude-session.sh     # close a project's Claude Code session
+    extract_icons_macos.py      # pull artwork out of installed .app bundles
+    make_key_icons.py           # SF Symbol gradient tiles
+    make_icon.py                # plain labelled tile (both platforms)
+    install_autostart_macos.sh  # LaunchAgent
+    uninstall_autostart_macos.sh
+    install_autostart.ps1       # Windows Startup folder
+    uninstall_autostart.ps1
+    extract_icons.ps1           # Windows icon extraction
+start-dock.sh / stop-dock.sh    # macOS launcher and graceful stop
+settings.json                   # Windows config
+settings.macos.json             # macOS config
+settings.schema.json            # JSON schema for VS Code autocomplete
+icons/                          # icon files
 ```
 
 ---
@@ -534,7 +562,9 @@ icons/               # your icon files
 - **Image format**: JPEG, 95×95, pre-rotated 90°
 - **Input frame**: 512-byte read, `ACK\0\0OK\0\0<keyId>` at bytes 0..9. Press-only — no release event.
 
-Keys are 1..15, **column-major from the bottom-left** corner.
+Keys are 1..15, **column-major from the bottom-left** corner. Slots 16, 17 and
+18 are the display-only status strip; they accept images the same way and never
+report input.
 
 ---
 
@@ -550,3 +580,23 @@ once after all `dock.set_image()` calls.
 
 **Icons look squished or sideways** — tweak `DOCK_IMAGE_ROTATE` (try 0, 180, 270).
 The AKP153E expects 90°; other variants in the family may differ.
+
+**A key logs `-> shell` but nothing happens** — check `dock.log` for the
+script's stderr, which the runner inherits. `Permission denied` there means the
+executable bit was lost: this repo has `core.fileMode=false`, so git records
+scripts as `100644` and a checkout recreates them non-executable. Fixed two
+ways — `git update-index --chmod=+x` for the index, and configs invoking
+scripts as `bash <path>` so a fresh clone works regardless.
+
+**The status strip is not updating** — `dock.log` prints `[status] 已推送槽`
+on every push, so check there first. If pushes are happening, the numbers
+genuinely have not moved: a weekly percentage against a ~28M denominator only
+shifts about half a point per day.
+
+**The dock stopped after the device blipped** — it shouldn't; `DockDisconnected`
+is caught around the whole loop and the runner reconnects with backoff. If it
+did die, `dock.log` has the traceback.
+
+**Autostart installs but nothing runs, log empty** — see
+[macOS gotchas](#macos-gotchas); on an external volume this is almost always
+the interpreter missing Full Disk Access.
