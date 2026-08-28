@@ -38,6 +38,11 @@ class ChildLock:
         self.code: list[int] = [int(k) for k in (config.get("code") or [])]
         self.image: str = config.get("image") or "icons/locked.png"
         self.idle_seconds: float = max(0.0, float(config.get("idle_minutes", 0)) * 60)
+        # Show the step order on the unlock keys. On by default: this guards
+        # against small hands, and an adult who cannot get back in is the more
+        # likely failure. Set false to make every key look identical.
+        self.hint: bool = bool(config.get("hint", True))
+        self.hint_image: str = config.get("hint_image") or "icons/lock_%d.png"
         self.locked: bool = bool(config.get("start_locked", False)) and self.configured
 
         self._buffer: list[int] = []
@@ -86,6 +91,22 @@ class ChildLock:
             self.unlock()
             return True
         return False
+
+    def step_of(self, key: int) -> int | None:
+        """Which press this key is, 1-based. First occurrence if repeated."""
+        try:
+            return self.code.index(int(key)) + 1
+        except ValueError:
+            return None
+
+    def tile_for(self, key: int) -> str:
+        """Icon to show on `key` while locked."""
+        if not self.hint:
+            return self.image
+        step = self.step_of(key)
+        if step is None or not (1 <= step <= 9):
+            return self.image
+        return self.hint_image % step
 
     @property
     def progress(self) -> int:

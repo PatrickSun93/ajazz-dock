@@ -270,10 +270,11 @@ The dock sits within reach, and its keys stop services and quit applications.
 
 ```jsonc
 "lock": {
-  "code": [13, 14, 15],        // key ids, in order
+  "code": [1, 2, 3, 4],        // key ids, in order
   "image": "icons/locked.png",
   "idle_minutes": 0,           // 0 disables auto-lock
-  "start_locked": false
+  "start_locked": false,
+  "hint": true                 // label the unlock keys ➊➋➌➍
 }
 ```
 
@@ -283,16 +284,18 @@ A key with `{ "type": "lock" }` locks on demand.
 there is no release event in the input frame — so there is nothing to time a
 hold against. A sequence is the only gesture this hardware can distinguish.
 
-The default code is the row nearest you, left to right. Which key ids those are
-depends on which way round the dock sits: with the status strip at the top
-(strip furthest from you) the near row is 13-14-15.
+**`hint` labels the unlock keys ➊➋➌➍ on the lock screen** and leaves every
+other key as a plain 🔒. It is on by default, which does put the code on the
+face of the lock — but this guards against small hands, and the failure that
+actually happens is an adult who cannot get back in. Set it to `false` and
+every tile becomes identical, giving away nothing about which positions the
+code uses.
 
-While locked every key shows the same tile, so the panel gives away nothing
-about which positions the code uses. Matching runs over a sliding window, so a
-burst of random presses followed by the right sequence still opens it — which
-is the whole situation it exists for. A lock with no `code` refuses to engage
-rather than locking itself shut permanently, and a config reload keeps the
-locked state.
+Matching runs over a sliding window, so a burst of random presses followed by
+the right sequence still opens it — which is the whole situation it exists for.
+A lock with no `code` refuses to engage rather than locking itself shut
+permanently, and a config reload keeps the locked state (so the code can be
+changed while locked, and the new one works immediately).
 
 Locked presses are logged with a progress bar (`● ● ○  2/3`), because a panel
 that shows nothing back is unusable to press into — you cannot tell a key that

@@ -70,8 +70,11 @@ def _push_images(dock: DockDevice, key_map: Mapping[int, Mapping[str, Any]],
 
 
 def _lock_screen(child: "lock.ChildLock") -> dict:
-    """Every key shows the same tile, so which ones matter is not visible."""
-    return {key: {"image": child.image} for key in range(1, KEYS + 1)}
+    """Keys in the unlock sequence show their step number; the rest show a lock.
+
+    With hints off every tile is identical and the sequence is invisible.
+    """
+    return {key: {"image": child.tile_for(key)} for key in range(1, KEYS + 1)}
 
 
 def _resolve_page(target: Any, current: int, pages: list) -> int:

@@ -97,6 +97,12 @@ ICONS: dict[str, tuple[str, str, tuple[str, str]]] = {
     "locked":        ("lock.fill",                             "已锁",     ("#4A5058", "#1C2026")),
     "lock_now":      ("lock.fill",                             "上锁",     ("#5E6670", "#2C333B")),
 
+    # Step markers shown on the unlock keys while locked. Brighter than the
+    # plain locked tile so the sequence stands out from the dead keys around
+    # it. This is deliberately a hint, not a secret -- see lock.hint.
+    **{f"lock_{n}": (f"{n}.circle.fill", "解锁", ("#5E86A8", "#294159"))
+       for n in range(1, 10)},
+
     # ---- P5 web ----
     "web_notebooklm": ("text.book.closed.fill", "NotebkLM", ("#5B8DEF", "#2C5AA8")),
     "web_gemini":     ("sparkles",              "Gemini",   ("#9B7EE0", "#5B3FA8")),
