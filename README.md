@@ -249,16 +249,28 @@ strip reads. Keep the script in `~/.claude/`, not in the repo: this checkout may
 live on an external volume, and a statusline command that cannot be read takes
 the terminal's status line down with it.
 
-**Fallback: an estimate.** With no hook installed, an older Claude Code, a
-Console account, or a snapshot older than 30 minutes, the strip falls back to
-summing `usage` blocks out of `~/.claude/projects/*/*.jsonl` and dividing by a
-calibrated baseline. Estimated tiles are prefixed `~` so a guess is never read
-as a measurement.
+**Stale beats estimated.** A snapshot only refreshes while some session is
+taking turns. Past 30 minutes it is shown greyed with its age (`45分钟前`)
+rather than replaced by an estimate — an old real figure is close, and the
+estimate is not. Past 6 hours it is dropped. If the 5h window it describes has
+since lapsed, the tile shows `?` rather than a percentage that is certainly
+wrong in the optimistic direction.
 
-Calibrate the baseline by pinning one real reading against local totals — on
-2026-08-24, `/usage` reported 39% of the week used against 10.3M output tokens,
-putting 100% near 27.9M (`week_limit`). Output tokens are a *proxy* for whatever
-Anthropic actually weighs, so redo this if the strip and `/usage` drift apart.
+**The estimate is a last resort, and it does not work well.** With no hook at
+all, the strip sums `usage` blocks out of `~/.claude/projects/*/*.jsonl` and
+divides by `limit` / `week_limit`. Tiles from this path are prefixed `~`.
+
+Do not trust the number. Measured 2026-08-28, the real weekly figure was **31%
+left while the estimate said 56%** — and the error runs in the dangerous
+direction, overstating what remains. Every proxy tried (output tokens, output +
+cache writes, total tokens, message count) drifted 0.6–0.8x against a
+calibration taken four days earlier, and the weekly denominator itself moves: a
+`+50% weekly limits` promo shifts it by roughly the 1.5x that drift showed.
+Anthropic's weighting is not published and the quota is not constant, so no
+local sum reproduces it.
+
+Install the hook. The estimate exists so the strip degrades to *something*, not
+because that something is reliable.
 
 `week_anchor` is one observed reset instant; periods repeat every 7 days from
 it, forwards and backwards, so it never needs updating.

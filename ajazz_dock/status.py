@@ -150,6 +150,13 @@ def _accent(spec, fallback):
 # Percentage bands. These colour the band, so the strip reads without
 # actually parsing the number.
 PCT_OK, PCT_WARN, PCT_LOW = (0x2E, 0x6B, 0x4F), (0xB0, 0x7A, 0x1E), (0xA8, 0x37, 0x22)
+# A snapshot nobody has refreshed lately. Greyed so it does not read as current.
+STALE_BAND = (0x4A, 0x50, 0x58)
+
+
+def _age_note(live: Mapping[str, Any]) -> str:
+    minutes = int(live.get("age", 0) // 60)
+    return f"{minutes // 60}小时前" if minutes >= 60 else f"{minutes}分钟前"
 
 
 def _band(pct: float):
@@ -163,8 +170,17 @@ def _provider_claude_pct(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
     token estimate against a hand-set baseline, and marks it with ~ so a guess
     is never mistaken for the real thing.
     """
-    live = (ctx.get("live") or {}).get("five_hour")
+    snapshot = ctx.get("live") or {}
+    live = snapshot.get("five_hour")
     if live:
+        stale = snapshot.get("stale")
+        # A lapsed window means the quota came back; saying 80% would be wrong
+        # in the one direction that matters.
+        if stale and live.get("seconds_left") == 0:
+            return (spec.get("label", "5H"), "?", "窗口已过", STALE_BAND)
+        if stale:
+            return (spec.get("label", "5H"), f"{live['pct_left']:.0f}%",
+                    _age_note(snapshot), STALE_BAND)
         sub = (time.strftime("%H:%M", time.localtime(live["reset"]))
                if live.get("reset") else "实时")
         return (spec.get("label", "5H"), f"{live['pct_left']:.0f}%",
@@ -189,9 +205,15 @@ def _fmt_left(seconds: float) -> str:
 
 def _provider_claude_reset(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
     """Time left on the current 5h window."""
-    live = (ctx.get("live") or {}).get("five_hour")
+    snapshot = ctx.get("live") or {}
+    live = snapshot.get("five_hour")
     if live and live.get("seconds_left") is not None:
         left = live["seconds_left"]
+        if snapshot.get("stale"):
+            if left == 0:
+                return spec.get("label", "重置"), "已过", _age_note(snapshot), STALE_BAND
+            return (spec.get("label", "重置"), _fmt_left(left),
+                    _age_note(snapshot), STALE_BAND)
         band = PCT_LOW if left <= 1800 else _accent(spec, (0x1F, 0x7A, 0x8C))
         return (spec.get("label", "重置"), _fmt_left(left),
                 time.strftime("%H:%M", time.localtime(live["reset"])), band)
@@ -218,8 +240,14 @@ def _provider_claude_week_pct(spec: Mapping[str, Any], ctx: Mapping[str, Any]):
     runs out. The baseline is calibrated against a real /usage reading rather
     than guessed (see claude_usage.DEFAULT_WEEK_LIMIT_OUT).
     """
-    live = (ctx.get("live") or {}).get("seven_day")
+    snapshot = ctx.get("live") or {}
+    live = snapshot.get("seven_day")
     if live:
+        # A weekly window outlives any staleness we tolerate, so the figure is
+        # still meaningful -- just flag how old it is.
+        if snapshot.get("stale"):
+            return (spec.get("label", "本周"), f"{live['pct_left']:.0f}%",
+                    _age_note(snapshot), STALE_BAND)
         sub = (time.strftime("%m-%d %H:%M", time.localtime(live["reset"]))
                if live.get("reset") else "实时")
         return (spec.get("label", "本周"), f"{live['pct_left']:.0f}%",

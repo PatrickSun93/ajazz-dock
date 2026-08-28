@@ -6,12 +6,19 @@ carries a `rate_limits` block for Pro/Max subscribers -- the same numbers
 /usage prints, with no API call. ~/.claude/statusline-usage.py captures that
 into RATE_LIMITS every turn.
 
-This is the difference between reporting a quota and estimating one. Everything
-in claude_usage.py works backwards from token totals against a hand-calibrated
-denominator; these are the actual percentages. So the strip prefers these and
-falls back to the estimate only when they are missing or stale -- no hook
-installed, an older Claude Code, a Console account rather than a subscription,
-or simply no session open recently enough to have refreshed the file.
+This is the difference between reporting a quota and estimating one, and the
+gap is not small. Measured 2026-08-28: the real weekly figure was 31% left
+while the token estimate said 56%. Every candidate proxy -- output tokens,
+output plus cache writes, total tokens, message count -- drifted 0.6-0.8x
+against a calibration taken four days earlier, and the weekly denominator
+itself moves (a promo altered it by roughly the 1.5x the drift showed). The
+weighting is not published and the quota is not constant, so no local sum
+reproduces it.
+
+That is why a stale snapshot is preferred over a fresh estimate: an hour-old
+real number is close, and the estimate is not merely imprecise but biased
+toward *overstating* what remains -- the direction that gets you cut off
+mid-task. The estimate is a last resort for hosts with no hook at all.
 """
 
 from __future__ import annotations
@@ -24,9 +31,13 @@ from datetime import datetime
 RATE_LIMITS = os.path.expanduser("~/.claude/rate-limits.json")
 
 # A snapshot only refreshes while some Claude Code session is taking turns.
-# Past this it describes a window that has probably moved on, and a stale
-# percentage shown as current is worse than an honest estimate.
-MAX_AGE_SECONDS = 30 * 60
+# Past this it is reported as stale rather than dropped: an old real figure
+# still beats the estimate, which cannot be trusted at all (see below).
+STALE_AFTER_SECONDS = 30 * 60
+
+# Eventually it is describing a window that has certainly rolled over. A 5h
+# window cannot outlive this, so nothing older is worth showing.
+MAX_AGE_SECONDS = 6 * 3600
 
 
 def _parse_reset(value) -> float | None:
@@ -73,7 +84,7 @@ def read() -> dict | None:
         return None
 
     now = time.time()
-    out: dict = {"age": age}
+    out: dict = {"age": age, "stale": age > STALE_AFTER_SECONDS}
     for key in ("five_hour", "seven_day"):
         entry = data.get(key) or {}
         pct_used = entry.get("pct_used")
