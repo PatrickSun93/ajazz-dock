@@ -188,8 +188,9 @@ only when it will not go quietly.
 Installs a **LaunchAgent**, not a LaunchDaemon — agents run inside your login
 session and can therefore launch apps onto your desktop, which is the same
 reason the Windows side uses the Startup folder instead of a Service.
-`KeepAlive` restarts the runner if it exits, so a dock plugged in after login
-gets picked up rather than staying dark.
+The runner waits for the dock if it is not there at launch, so one plugged in
+after login gets picked up rather than staying dark; `KeepAlive` restarts the
+runner if it ever dies anyway.
 
 On an external volume this needs Full Disk Access for the *interpreter* — see
 [macOS gotchas](#macos-gotchas). The installer detects the failure and prints
@@ -606,7 +607,9 @@ scripts as `bash <path>` so a fresh clone works regardless.
 **The status strip is not updating** — `dock.log` prints `[status] 已推送槽`
 on every push, so check there first. If pushes are happening, the numbers
 genuinely have not moved: a weekly percentage against a ~28M denominator only
-shifts about half a point per day.
+shifts about half a point per day. If the log shows `[device] 等待设备回来…`
+instead, the dock has dropped off the USB bus and the runner is waiting for
+it: unplug and replug the dock (or the hub it hangs off).
 
 **The dock stopped after the device blipped** — it shouldn't; `DockDisconnected`
 is caught around the whole loop and the runner reconnects with backoff. If it

@@ -175,10 +175,10 @@ def _reconnect(attempts: int = 0) -> Optional[DockDevice]:
     hidapi reports an unplug, a sleeping device, or a USB re-enumeration as a
     plain read/write error. Dying on that would mean a dock that goes quiet for
     a second stays dark until someone notices, so keep trying instead. Returns
-    None only on Ctrl-C.
+    None only when asked to shut down (SIGTERM / Ctrl-C) meanwhile.
     """
     delay = 1.0
-    while True:
+    while not _shutdown.is_set():
         attempts += 1
         try:
             dock = DockDevice()
@@ -189,11 +189,12 @@ def _reconnect(attempts: int = 0) -> Optional[DockDevice]:
         except Exception as exc:
             if attempts == 1 or attempts % 10 == 0:
                 print(f"[device] 等待设备回来… ({exc})")
-            try:
-                time.sleep(delay)
-            except KeyboardInterrupt:
+            # Event.wait rather than time.sleep: the back-off reaches 30s and
+            # stop-dock.sh gives up on a SIGTERM after 5s.
+            if _shutdown.wait(delay):
                 return None
             delay = min(30.0, delay * 1.6)
+    return None
 
 
 def main(config_path: str = "settings.json") -> int:
@@ -225,7 +226,15 @@ def main(config_path: str = "settings.json") -> int:
     skip_images = os.environ.get("DOCK_SKIP_IMAGES") == "1"
 
     try:
-        dock = DockDevice()
+        try:
+            dock = DockDevice()
+        except OSError:
+            # Not plugged in yet, or still re-enumerating after a drop. Wait
+            # for it the way a mid-run disconnect does, instead of dying with
+            # a traceback for launchd to respawn every 10s until it shows up.
+            dock = _reconnect()
+            if dock is None:
+                raise KeyboardInterrupt
         if not skip_init:
             dock.init()
         try:

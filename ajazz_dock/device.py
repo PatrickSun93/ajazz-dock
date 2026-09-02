@@ -100,15 +100,20 @@ class DockDevice:
     def _write(self, payload: bytes) -> None:
         # hidapi wants the report ID byte prepended on every platform.
         try:
-            self._dev.write(b"\x00" + _pad(payload))
+            sent = self._dev.write(b"\x00" + _pad(payload))
         except (OSError, ValueError) as exc:
             raise DockDisconnected(str(exc)) from exc
+        # cython-hidapi raises on a failed read but not on a failed write: it
+        # hands back -1. A stale handle -- the dock dropped off the bus and the
+        # removal notification never reached hidapi -- fails every write that
+        # way while reads just keep timing out, which looks exactly like "no
+        # key pressed". Unchecked, the runner pushes tiles into the void for
+        # hours and never reconnects (seen 2026-09-02).
+        if sent < 0:
+            raise DockDisconnected("write error")
 
     def _write_raw_chunk(self, chunk: bytes) -> None:
-        try:
-            self._dev.write(b"\x00" + _pad(chunk))
-        except (OSError, ValueError) as exc:
-            raise DockDisconnected(str(exc)) from exc
+        self._write(chunk)
 
     def init(self) -> None:
         # Two-step wake per mirajazz: DIS, then LIG with all-zero brightness
