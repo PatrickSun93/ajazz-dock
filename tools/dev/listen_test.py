@@ -2,7 +2,7 @@
 Minimal listen-only sanity test. No DockDevice abstraction, no init, no
 output reports. Opens VID 0x0300 PID 0x1010 and dumps anything it reads.
 
-This is the cleanest possible apples-to-apples vs probe.py — if probe.py
+This is the cleanest possible apples-to-apples vs tools/dev/probe.py — if probe.py
 listen prints frames and this doesn't, the difference is between the two
 scripts. If neither prints frames, the device is in a stuck state and
 needs to be unplugged/replugged.

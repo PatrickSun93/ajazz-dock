@@ -1,5 +1,5 @@
 """
-Windows action backend.
+Windows action backend (sys.platform == "win32").
 
 url    -> os.startfile           (default browser / shell association)
 app    -> subprocess.Popen

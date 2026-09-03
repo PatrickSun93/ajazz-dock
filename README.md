@@ -15,19 +15,29 @@ This is a clean-room reimplementation. No vendor software required.
 
 ## Which platform
 
-Runs on **Windows and macOS**. The HID protocol is identical on both; what
-differs is how actions are carried out, which lives in a per-platform backend
-(`ajazz_dock/backend_win32.py` / `backend_darwin.py`) picked at import time.
+Runs on **Windows and macOS**, and the two sides are deliberately symmetric:
+same package, same config shape, same script names with a different
+extension. The HID protocol is identical on both. What differs is how an
+action is carried out, and that lives in one module per host under
+`ajazz_dock/backends/`, picked at import time — nothing else in the code
+branches on the platform.
 
 | | Windows | macOS |
 |---|---|---|
-| config | `settings.json` | `settings.macos.json` |
-| launch | `start-dock.bat` | `start-dock.sh` / `stop-dock.sh` |
+| config | `settings.windows.json` | `settings.macos.json` |
+| backend | `backends/windows.py` | `backends/darwin.py` |
+| launch / stop | `start-dock.ps1` / `stop-dock.ps1` | `start-dock.sh` / `stop-dock.sh` |
 | open URL | `os.startfile` | `open` |
 | launch app | `subprocess.Popen` | `open -a` / `open -b` |
 | hotkeys / typing | `keyboard` | `pynput` (needs Accessibility) |
-| autostart | Startup folder (`.ps1`) | LaunchAgent (`.sh`) |
-| icon extraction | `extract_icons.ps1` | `extract_icons_macos.py` + `make_key_icons.py` |
+| graceful stop | `CTRL_BREAK` → `SIGBREAK` | `SIGTERM` |
+| terminal helper | `tools/run-in-wt.ps1` | `tools/run-in-iterm.sh` |
+| autostart | Startup folder (`install_autostart_windows.ps1`) | LaunchAgent (`install_autostart_macos.sh`) |
+| icon extraction | `extract_icons_windows.ps1` | `extract_icons_macos.py` + `make_key_icons.py` |
+
+The two config files are kept key-for-key identical — same five pages, same
+key ids, same status strip and child lock. Only the action targets differ, so
+`diff` between them shows exactly the per-host part and nothing else.
 
 Jump to [macOS setup](#macos-setup) if that is your host.
 
@@ -83,18 +93,29 @@ Should print `0x0300:0x1010  ...`.
 ### 5. Run it
 
 ```powershell
-python -m ajazz_dock                       # uses ./settings.json
-python -m ajazz_dock path\to\other.json    # custom path
-ajazz-dock                                 # if installed via pip
+.\start-dock.ps1                            # settings.windows.json, logs to dock.log
+python -m ajazz_dock                        # same config, in the foreground
+python -m ajazz_dock path\to\other.json     # custom path
+ajazz-dock                                  # if installed via pip
+.\stop-dock.ps1                             # stop it and leave the panel dark
 ```
+
+Naming no config picks this host's default — `settings.windows.json` here,
+`settings.macos.json` on a Mac — so the same command line works on both.
 
 You should see:
 
 ```
-ajazz-dock ready. 15 keys, config=settings.json, watching for changes.
+ajazz-dock ready. 15 keys, 5 page(s), config=settings.windows.json, watching for changes.
 ```
 
 Press a key — it logs `key  N  -> <action type>` and fires.
+
+`stop-dock.ps1` attaches to the running dock's console and raises
+`CTRL_BREAK`, which the runner handles by clearing every key and sleeping the
+panel before it exits. Windows has no `kill -TERM` for a console app, so this
+is the equivalent; `-Force` skips it and leaves the last page's icons lit on a
+dock nothing is driving.
 
 ### 6. (Optional) Start at login
 
@@ -102,13 +123,15 @@ One script generates a hidden launcher and drops it into your per-user
 Startup folder, so the dock comes up automatically at every logon:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\install_autostart.ps1
+powershell -ExecutionPolicy Bypass -File tools\install_autostart_windows.ps1
 ```
 
-Pass `-PythonExe` if your interpreter isn't the default conda env path:
+Pass `-PythonExe` if the interpreter isn't the one it would find on its own
+(`$env:PYTHON`, then `.venv\Scripts\python.exe`, then the conda env path), and
+`-Config` to bake in a config other than `settings.windows.json`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\install_autostart.ps1 -PythonExe "C:\path\to\python.exe"
+powershell -ExecutionPolicy Bypass -File tools\install_autostart_windows.ps1 -PythonExe "C:\path\to\python.exe"
 ```
 
 It needs no admin rights, runs hidden (no console window), and logs to
@@ -116,7 +139,7 @@ It needs no admin rights, runs hidden (no console window), and logs to
 wait for the next logon. To remove it:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\uninstall_autostart.ps1
+powershell -ExecutionPolicy Bypass -File tools\uninstall_autostart_windows.ps1
 ```
 
 > **Why not a Windows Service?** A real service runs in session 0,
@@ -168,8 +191,8 @@ Two generators, because macOS icons come from two places:
 ### 4. Run it
 
 ```bash
-./start-dock.sh                    # uses settings.macos.json, logs to dock.log
-./.venv/bin/python -u -m ajazz_dock settings.macos.json   # or in the foreground
+./start-dock.sh                    # settings.macos.json, logs to dock.log
+./.venv/bin/python -u -m ajazz_dock # same config, in the foreground
 ./stop-dock.sh                     # stop it and leave the panel dark
 ```
 
@@ -525,20 +548,25 @@ needed.
 | `DOCK_DEBUG=1`      | Dump unrecognized HID input frames to stderr                 |
 | `DOCK_IMAGE_W/H`    | Override image size (default 95×95)                          |
 | `DOCK_IMAGE_ROTATE` | Rotate before sending (default 90°)                          |
-| `PYTHON`            | Interpreter used by `start-dock.sh`                          |
+| `PYTHON`            | Interpreter used by `start-dock.sh` / `start-dock.ps1`       |
 
 ---
 
 ## Project layout
+
+Paired files sit next to each other on purpose: wherever one host has a file,
+the other has its counterpart under the same name with a different suffix.
 
 ```
 ajazz_dock/
     __init__.py         # public API: DockDevice, Config, actions
     __main__.py         # python -m ajazz_dock entry
     device.py           # HID protocol (CRT\0\0 commands, JPEG push, reconnect)
-    actions.py          # action dispatcher + platform backend selection
-    backend_darwin.py   # macOS: open / open -a / pynput
-    backend_win32.py    # Windows: os.startfile / Popen / keyboard
+    actions.py          # action dispatcher (platform-neutral: shell, macro)
+    backends/
+        __init__.py     # picks this host's backend; the only sys.platform check
+        darwin.py       # macOS: open / open -a / pynput
+        windows.py      # Windows: os.startfile / Popen / keyboard
     config.py           # JSONC loader + thread-safe Config holder
     runner.py           # main loop: hot reload, image diffing, key dispatch
     status.py           # status strip (slots 16-18): providers + render + worker
@@ -546,23 +574,32 @@ ajazz_dock/
     claude_usage.py     # token totals from session logs (the fallback estimate)
     lock.py             # child lock: unlock sequence, auto-lock
 tools/
-    statusline-usage.py         # Claude Code statusline hook -> rate-limits.json
-    run-in-iterm.sh             # open an iTerm window and run something in it
-    close-claude-session.sh     # close a project's Claude Code session
-    extract_icons_macos.py      # pull artwork out of installed .app bundles
-    make_key_icons.py           # SF Symbol gradient tiles
-    make_icon.py                # plain labelled tile (both platforms)
-    install_autostart_macos.sh  # LaunchAgent
+    statusline-usage.py             # Claude Code statusline hook -> rate-limits.json
+    close-claude-session.sh         # close a project's Claude Code session
+    make_key_icons.py               # SF Symbol gradient tiles
+    make_icon.py                    # plain labelled tile (both platforms)
+    run-in-iterm.sh                 # macOS: new iTerm window running a command
+    run-in-wt.ps1                   # Windows: same, with Windows Terminal
+    extract_icons_macos.py          # artwork out of installed .app bundles
+    extract_icons_windows.ps1       # artwork out of installed .exe files
+    install_autostart_macos.sh      # LaunchAgent
     uninstall_autostart_macos.sh
-    install_autostart.ps1       # Windows Startup folder
-    uninstall_autostart.ps1
-    extract_icons.ps1           # Windows icon extraction
-start-dock.sh / stop-dock.sh    # macOS launcher and graceful stop
-settings.json                   # Windows config
-settings.macos.json             # macOS config
-settings.schema.json            # JSON schema for VS Code autocomplete
-icons/                          # icon files
+    install_autostart_windows.ps1   # Startup folder
+    uninstall_autostart_windows.ps1
+    dev/
+        probe.py        # list HID devices, dump raw input reports
+        image_test.py   # push one image to one key
+        listen_test.py  # minimal read loop, for comparing against probe.py
+start-dock.sh / stop-dock.sh     # macOS launcher and graceful stop
+start-dock.ps1 / stop-dock.ps1   # Windows launcher and graceful stop
+settings.macos.json              # macOS config
+settings.windows.json            # Windows config (same shape, key for key)
+settings.schema.json             # JSON schema for VS Code autocomplete
+icons/                           # icon files, shared by both hosts
 ```
+
+Adding a third platform means one module under `backends/`, one line in
+`backends/__init__.py`, one `settings.<host>.json`, and a launcher pair.
 
 ---
 

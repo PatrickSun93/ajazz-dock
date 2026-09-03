@@ -1,5 +1,5 @@
 """
-macOS action backend.
+macOS action backend (sys.platform == "darwin").
 
 url    -> `open <url>`                      (default browser)
 app    -> `open -a` / `open -b` / direct exec, see _run_app

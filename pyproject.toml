@@ -39,4 +39,4 @@ ajazz-dock = "ajazz_dock.runner:cli"
 Homepage = "https://github.com/peido/ajazz-dock"
 
 [tool.setuptools]
-packages = ["ajazz_dock"]
+packages = ["ajazz_dock", "ajazz_dock.backends"]

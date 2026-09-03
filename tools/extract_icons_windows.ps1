@@ -1,6 +1,6 @@
 # Extract high-res app icons from .exe files into icons/.
 # Run with Windows PowerShell 5.1 (has System.Drawing in the GAC):
-#   powershell.exe -ExecutionPolicy Bypass -File tools\extract_icons.ps1
+#   powershell.exe -ExecutionPolicy Bypass -File tools\extract_icons_windows.ps1
 Add-Type -AssemblyName System.Drawing
 Add-Type -TypeDefinition @'
 using System;

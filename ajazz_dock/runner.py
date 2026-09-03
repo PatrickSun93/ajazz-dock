@@ -1,15 +1,18 @@
 """
 Ajazz AKP153E host runner.
 
-Loads settings.json (JSONC), pushes per-key images, listens for key presses,
+Loads a JSONC config, pushes per-key images, listens for key presses,
 dispatches configured actions. Config is hot-reloaded on file change.
 
 Supports multiple pages: a `page` action switches the active page, re-pushing
 that page's 15 images. See config.py for the config shape.
 
 Usage:
-    python -m ajazz_dock                       # uses ./settings.json
-    python -m ajazz_dock path\\to\\other.json   # custom path
+    python -m ajazz_dock                       # this host's default config
+    python -m ajazz_dock path/to/other.json    # custom path
+
+The default is per-platform -- settings.macos.json on macOS,
+settings.windows.json on Windows -- so the same command line works on both.
 
 Env knobs:
     DOCK_SKIP_INIT=1     skip init handshake (device already awake)
@@ -34,6 +37,19 @@ from watchdog.observers import Observer
 from . import actions, lock, status
 from .config import Config
 from .device import KEYS, DockDevice, DockDisconnected
+
+# Each host reads its own config: the bindings are full of absolute paths and
+# app names that mean nothing on the other platform. Only the file name is
+# per-platform -- the shape of both files is identical, so they diff cleanly.
+_DEFAULT_CONFIG = {
+    "darwin": "settings.macos.json",
+    "win32": "settings.windows.json",
+}
+
+
+def default_config() -> str:
+    """Config used when the command line names none."""
+    return _DEFAULT_CONFIG.get(sys.platform, "settings.macos.json")
 
 
 def _push_images(dock: DockDevice, key_map: Mapping[int, Mapping[str, Any]],
@@ -152,7 +168,14 @@ def _install_signal_handlers() -> None:
         print(f"\n[dock] 收到信号 {signum}，正在收尾…")
         _shutdown.set()
 
-    for sig in (signal.SIGTERM, signal.SIGINT):
+    # SIGBREAK is Windows-only and is what Ctrl-Break and a graceful
+    # `taskkill /PID` deliver; without it stop-dock.ps1 has nothing to send
+    # short of /F, which leaves the last page's icons lit.
+    names = ("SIGTERM", "SIGINT", "SIGBREAK")
+    for name in names:
+        sig = getattr(signal, name, None)
+        if sig is None:
+            continue
         try:
             signal.signal(sig, handler)
         except (ValueError, OSError):
@@ -190,18 +213,19 @@ def _reconnect(attempts: int = 0) -> Optional[DockDevice]:
             if attempts == 1 or attempts % 10 == 0:
                 print(f"[device] 等待设备回来… ({exc})")
             # Event.wait rather than time.sleep: the back-off reaches 30s and
-            # stop-dock.sh gives up on a SIGTERM after 5s.
+            # the stop scripts give up on a SIGTERM after 5s.
             if _shutdown.wait(delay):
                 return None
             delay = min(30.0, delay * 1.6)
     return None
 
 
-def main(config_path: str = "settings.json") -> int:
-    path = Path(config_path)
+def main(config_path: str | None = None) -> int:
+    path = Path(config_path or default_config())
     if not path.exists():
         print(f"config not found: {path}")
-        print("hint: copy settings.example.json to settings.json")
+        print(f"hint: this host's default is {default_config()}; "
+              "pass another path as the first argument")
         return 1
 
     try:
@@ -414,8 +438,7 @@ def main(config_path: str = "settings.json") -> int:
 
 
 def cli() -> int:
-    arg = sys.argv[1] if len(sys.argv) > 1 else "settings.json"
-    return main(arg)
+    return main(sys.argv[1] if len(sys.argv) > 1 else None)
 
 
 if __name__ == "__main__":

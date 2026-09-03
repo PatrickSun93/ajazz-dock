@@ -6,10 +6,10 @@ optionally listens for key presses for a few seconds so we can see whether
 input still works after the image push.
 
 Usage:
-    python image_test.py                          # key 1, icons/github.png, listen 5s
-    python image_test.py 13                       # different key
-    python image_test.py 13 icons/claude.png      # different key + image
-    python image_test.py 13 icons/claude.png 20   # also listen for 20s
+    python tools/dev/image_test.py                          # key 1, icons/github.png, listen 5s
+    python tools/dev/image_test.py 13                       # different key
+    python tools/dev/image_test.py 13 icons/claude.png      # different key + image
+    python tools/dev/image_test.py 13 icons/claude.png 20   # also listen for 20s
 
 If the dock LCD under the chosen key shows the image AND key presses still
 get printed during the listen phase, the protocol implementation is correct

@@ -1,0 +1,209 @@
+{
+  // Windows 配置 —— 用法： .\start-dock.ps1   或   python -m ajazz_dock settings.windows.json
+  // macOS 侧用 settings.macos.json，两边互不影响。
+  //
+  // ── 这份文件是按 settings.macos.json 逐键镜像出来的 ──────────────
+  // 同一个物理按键在两台机器上做同一件事，页名、键位、状态栏、儿童锁
+  // 全部对齐，两份配置可以直接 diff。只有 target 换成了 Windows 的写法。
+  //
+  // 【首次使用前请核对这几个路径】—— 镜像自 macOS 侧，Windows 上未必存在：
+  //   D:\devitems\{ai-agents, web-apps, trading-bots, second-brain, resume, learning}
+  //   C:\Users\peido\AppData\Local\Programs\Antigravity\Antigravity.exe
+  //   C:\Users\peido\AppData\Local\Programs\obsidian\Obsidian.exe
+  //   C:\Users\peido\AppData\Local\Programs\Microsoft VS Code\Code.exe
+  //   C:\Program Files\{Notepad++, Git, Docker}
+//   D:\devitems\tools\ajazzreplace   ← 本仓库在 Windows 上的位置
+//                                        （stack / claude 两页调 tools\run-in-wt.ps1）
+  // 路径不对的键按下去只是打不开，不会有别的后果。改完存盘即时生效。
+  "$schema": "./settings.schema.json",
+
+  "brightness": 80,
+
+  // ---- 儿童锁 ---------------------------------------------------------
+  // 和 macOS 侧同一套序列，换台机器不用重新记。
+  //
+  // 为什么是序列不是长按：设备只报「按下」，输入帧里没有「松开」
+  // （见 device.py 的说明），所以没法给长按计时。
+  //
+  // code 是【按键编号】的顺序，不是图案 —— 锁上后每个键长得一模一样。
+  // 序列 1-2-3-4 = 【离状态栏最近的那一排，从左到右，再拐到下一排最左】。
+  //
+  //        ┌─── 状态栏（三格）───┐
+  //        │ ➊1    ➋2    ➌3     │
+  //        │ ➍4     5     6     │
+  //        │  7     8     9     │
+  //        │ 10    11    12     │
+  //        │ 13    14    15     │
+  //        └────────────────────┘
+  //
+  // idle_minutes 设 0 = 不自动上锁。
+  "lock": {
+    "code": [1, 2, 3, 4],
+    "image": "icons/locked.png",
+    "idle_minutes": 0,
+    "start_locked": false,
+    "hint": true
+  },
+
+  // ---- 状态栏（键盘上方那条，三格，从上到下 = 槽 16/17/18）--------------
+  // 只显示、不响应按键。
+  //
+  // 数字来自 %USERPROFILE%\.claude\rate-limits.json，由 Claude Code 的
+  // statusline hook 写入 —— Windows 上也要装，否则只能走本地估算，而估算
+  // 会【高估剩余额度】，也就是错在会让你被切断的那个方向。装法见 README。
+  //
+  // limit / week_limit 只有在没装 hook 时才用得上。
+  // week_anchor 是一个真实观测到的重置时刻，之后每 7 天一轮，过期也不用改。
+  "status": {
+    "refresh": 60,
+    "limit": 2500000,
+    "week_limit": 27900000,
+    "week_anchor": "2026-08-28T17:00:00",
+    "slots": {
+      "16": { "type": "claude_pct" },
+      "17": { "type": "claude_reset" },
+      "18": { "type": "claude_week_pct", "label": "本周" }
+    }
+  },
+
+  // 键位（从左下角起列优先编号，dock 立起来时和物理位置对应）：
+  //
+  //     col1  col2  col3
+  //      13    14    15   <- 第 1 行（顶）
+  //      10    11    12
+  //       7     8     9
+  //       4     5     6
+  //       1     2     3   <- 第 5 行（底）
+  //
+  // ── 两个坑，改配置前先读 ──────────────────────────────────────
+  // 1. shell 动作走的是 cmd.exe，不是 PowerShell。要用 PowerShell 的语法
+  //    就写成 app 动作调 pwsh.exe，或者 shell: "pwsh -NoProfile -Command ..."。
+  // 2. 开 Claude Code 用的是 app 动作 + args 数组，不是 shell —— 数组不用
+  //    操心引号转义，路径里有空格也不会被拆开。
+  //
+  // ---- shared: 每页都有（翻页键）--------------------------------------
+  "shared": {
+    "1": { "image": "icons/prev.png", "action": { "type": "page", "target": "prev" } },
+    "3": { "image": "icons/next.png", "action": { "type": "page", "target": "next" } }
+  },
+
+  "pages": [
+    {
+      // ── 第 1 页 · apps ─────────────────────────────────────────────
+      "name": "apps",
+      "keys": {
+        "2":  { "image": "icons/discord.png",   "action": { "type": "app", "target": "discord" } },
+        "4":  { "image": "icons/snip.png",      "action": { "type": "keys", "target": "windows+shift+s" } },
+        "5":  { "image": "icons/notepadpp.png", "action": { "type": "app", "target": "C:\\Program Files\\Notepad++\\notepad++.exe" } },
+        "6":  { "image": "icons/wechat.png",    "action": { "type": "app", "target": "wechat" } },
+        "7":  { "image": "icons/obsidian.png",  "action": { "type": "app", "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\obsidian\\Obsidian.exe" } },
+        "8":  { "image": "icons/notion.png",    "action": { "type": "app", "target": "notion" } },
+        "9":  { "image": "icons/docker.png",    "action": { "type": "app", "target": "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe" } },
+        "10": { "image": "icons/vscode.png",    "action": { "type": "app", "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe" } },
+        "11": { "image": "icons/claudeapp.png", "action": { "type": "app", "target": "claude" } },
+        "12": { "image": "icons/antigravity.png", "action": { "type": "app", "target": "C:\\Users\\peido\\AppData\\Local\\Programs\\Antigravity\\Antigravity.exe" } },
+        "13": { "image": "icons/chrome.png",    "action": { "type": "app", "target": "chrome" } },
+        "14": { "image": "icons/terminal.png",  "action": { "type": "app", "target": "C:\\Users\\peido\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe" } },
+        "15": { "image": "icons/gitbash.png",   "action": { "type": "app", "target": "C:\\Program Files\\Git\\git-bash.exe" } }
+      }
+    },
+    {
+      // ── 第 2 页 · files ────────────────────────────────────────────
+      // 对应 macOS 侧的 `open <目录>`；Windows 上是 explorer。
+      // shell:Downloads / shell:Desktop 是系统自带的位置别名，
+      // 不管用户名和盘符是什么都能开。
+      "name": "files",
+      "keys": {
+        "2":  { "image": "icons/dir_webapps.png",   "action": { "type": "shell", "target": "explorer \"D:\\devitems\\web-apps\"" } },
+        "4":  { "image": "icons/explorer.png",      "action": { "type": "shell", "target": "explorer shell:MyComputerFolder" } },
+        "5":  { "image": "icons/dir_aiagents.png",  "action": { "type": "shell", "target": "explorer \"D:\\devitems\\ai-agents\"" } },
+        "6":  { "image": "icons/dir_trading.png",   "action": { "type": "shell", "target": "explorer \"D:\\devitems\\trading-bots\"" } },
+        "7":  { "image": "icons/dir_brain.png",     "action": { "type": "shell", "target": "explorer \"D:\\devitems\\second-brain\"" } },
+        "8":  { "image": "icons/dir_downloads.png", "action": { "type": "shell", "target": "explorer shell:Downloads" } },
+        "9":  { "image": "icons/dir_desktop.png",   "action": { "type": "shell", "target": "explorer shell:Desktop" } },
+        "10": { "image": "icons/dir_picron.png",    "action": { "type": "shell", "target": "explorer \"D:\\devitems\\trading-bots\\PiCron\"" } },
+        "11": { "image": "icons/dir_resume.png",    "action": { "type": "shell", "target": "explorer \"D:\\devitems\\resume\"" } },
+        "12": { "image": "icons/dir_nodetex.png",   "action": { "type": "shell", "target": "explorer \"D:\\devitems\\web-apps\\nodeTexeure\"" } },
+        "13": { "image": "icons/dir_devitems.png",  "action": { "type": "shell", "target": "explorer \"D:\\devitems\"" } },
+        "14": { "image": "icons/dir_engloop.png",   "action": { "type": "shell", "target": "explorer \"D:\\devitems\\ai-agents\\EngLoop\"" } },
+        "15": { "image": "icons/dir_palearn.png",   "action": { "type": "shell", "target": "explorer \"D:\\devitems\\learning\\palearning\"" } }
+      }
+    },
+    {
+      // ── 第 3 页 · claude ───────────────────────────────────────────
+      // 每键在对应目录开一个 Windows Terminal 窗口跑 Claude Code，
+      // 走 tools\\run-in-wt.ps1 —— 它是 macOS 侧 run-in-iterm.sh 的对应物，
+      // 参数和默认命令都一样，所以两份配置这一页可以直接对着看。
+      //
+      // 助手脚本没写死 wt.exe：装了 Windows Terminal 就用它，没装就退回
+      // 普通 PowerShell 窗口，键不会变成哑的。
+      "name": "claude",
+      "keys": {
+        "4":  { "image": "icons/cc_shipflow.png", "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\tools\\shipflow\"" } },
+        "5":  { "image": "icons/cc_brain.png",    "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\second-brain\"" } },
+        "6":  { "image": "icons/lock_now.png",    "action": { "type": "lock" } },
+        "7":  { "image": "icons/cc_devitems.png", "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\"" } },
+        "8":  { "image": "icons/cc_engloop.png",  "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\ai-agents\\EngLoop\"" } },
+        "9":  { "image": "icons/cc_sched.png",    "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\ai-agents\\scheduler\"" } },
+        "10": { "image": "icons/cc_resume.png",   "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\resume\"" } },
+        "11": { "image": "icons/cc_picron.png",   "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\trading-bots\\PiCron\"" } },
+        "12": { "image": "icons/cc_pagent.png",   "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\ai-agents\"" } },
+        "13": { "image": "icons/cc_all.png",      "action": { "type": "shell", "target": "wt -d \"D:\\devitems\" pwsh -NoExit -Command claude ; new-tab -d \"D:\\devitems\\ai-agents\" pwsh -NoExit -Command claude ; new-tab -d \"D:\\devitems\\web-apps\" pwsh -NoExit -Command claude" } },
+        "14": { "image": "icons/cc_nodetex.png",  "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\web-apps\\nodeTexeure\"" } },
+        "15": { "image": "icons/cc_palearn.png",  "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\learning\\palearning\"" } }
+      }
+    },
+    {
+      // ── 第 4 页 · stack ────────────────────────────────────────────
+      // 本地服务的开关和面板，和 macOS 侧逐键对应。URL 三键完全一样 ——
+      // 端口不分平台。
+      //
+      // devstack / stop 这几个是【你自己项目里的脚本】，不在本仓库里。
+      // macOS 侧调的是 ./devstack.sh、./stop.sh；Windows 这边写的是同名的
+      // .ps1。你要么在那两个目录里放一份 .ps1，要么把这里改成
+      // "bash ./devstack.sh"（装了 Git for Windows 就能跑）。
+      "name": "stack",
+      "keys": {
+        // 2 = 图表服务止损。macOS 是 pkill -f chart_server.py，这里是等价的
+        //     按命令行匹配再杀 —— taskkill 只认进程名，认不出是哪个 python。
+        "2":  { "image": "icons/svc_chart_stop.png", "action": { "type": "shell", "target": "powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*chart_server.py*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }\"" } },
+        "4":  { "image": "icons/ollama.png",         "action": { "type": "app", "target": "ollama" } },
+        // 5 = EngLoop 止损：stop --now，直接杀，不等收尾。
+        "5":  { "image": "icons/svc_eng_kill.png",   "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\ai-agents\\EngLoop\" \"./stop.ps1 --now\"" } },
+        "6":  { "image": "icons/stack_stop.png",     "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\" \"./devstack.ps1 stop\"" } },
+        "7":  { "image": "icons/docker.png",         "action": { "type": "app", "target": "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe" } },
+        // 8 = 任务管理器，对应 macOS 的活动监视器。
+        "8":  { "image": "icons/taskmgr.png",        "action": { "type": "keys", "target": "ctrl+shift+esc" } },
+        "9":  { "image": "icons/svc_devsrv.png",     "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\web-apps\\nodeTexeure\" \"npm run dev\"" } },
+        "10": { "image": "icons/svc_bus.png",        "action": { "type": "url", "target": "http://127.0.0.1:9969" } },
+        "11": { "image": "icons/svc_chart.png",      "action": { "type": "url", "target": "http://127.0.0.1:8502" } },
+        "12": { "image": "icons/svc_3000.png",       "action": { "type": "url", "target": "http://localhost:3000" } },
+        "13": { "image": "icons/stack_start.png",    "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\" \"./devstack.ps1 start\"" } },
+        "14": { "image": "icons/stack_status.png",   "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\" \"./devstack.ps1 status\"" } },
+        // 15 = EngLoop 优雅停：让每个 agent 收尾再退。
+        "15": { "image": "icons/svc_eng_stop.png",   "action": { "type": "shell", "target": "powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\devitems\\tools\\ajazzreplace\\tools\\run-in-wt.ps1\" \"D:\\devitems\\ai-agents\\EngLoop\" \"./stop.ps1\"" } }
+      }
+    },
+    {
+      // ── 第 5 页 · web ──────────────────────────────────────────────
+      // 除了键 2（macOS 上是富途，这边是 moomoo 客户端），其余和 macOS 逐键一致 ——
+      // 网址本来就不分平台。
+      "name": "web",
+      "keys": {
+        "2":  { "image": "icons/moomoo.png",         "action": { "type": "app", "target": "moomoo" } },
+        "4":  { "image": "icons/excalidraw.png",     "action": { "type": "url", "target": "https://excalidraw.com" } },
+        "5":  { "image": "icons/web_hn.png",         "action": { "type": "url", "target": "https://news.ycombinator.com" } },
+        "6":  { "image": "icons/web_supabase.png",   "action": { "type": "url", "target": "https://supabase.com/dashboard" } },
+        "7":  { "image": "icons/tradingview.png",    "action": { "type": "url", "target": "https://www.tradingview.com/" } },
+        "8":  { "image": "icons/web_youtube.png",    "action": { "type": "url", "target": "https://www.youtube.com" } },
+        "9":  { "image": "icons/web_bilibili.png",   "action": { "type": "url", "target": "https://www.bilibili.com" } },
+        "10": { "image": "icons/github.png",         "action": { "type": "url", "target": "https://github.com/PatrickSun93" } },
+        "11": { "image": "icons/chatgpt.png",        "action": { "type": "url", "target": "https://chatgpt.com" } },
+        "12": { "image": "icons/web_vercel.png",     "action": { "type": "url", "target": "https://vercel.com/dashboard" } },
+        "13": { "image": "icons/claude.png",         "action": { "type": "url", "target": "https://claude.ai" } },
+        "14": { "image": "icons/web_notebooklm.png", "action": { "type": "url", "target": "https://notebooklm.google.com" } },
+        "15": { "image": "icons/web_gemini.png",     "action": { "type": "url", "target": "https://gemini.google.com" } }
+      }
+    }
+  ]
+}

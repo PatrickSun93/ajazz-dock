@@ -5,7 +5,7 @@
 #   ./tools/install_autostart_macos.sh settings.macos.json
 #   PYTHON=/opt/homebrew/bin/python3 ./tools/install_autostart_macos.sh
 #
-# This is the macOS counterpart of tools/install_autostart.ps1. A LaunchAgent
+# This is the macOS counterpart of tools/install_autostart_windows.ps1. A LaunchAgent
 # (not a LaunchDaemon) is the right choice for the same reason the Windows side
 # uses the Startup folder rather than a Service: agents run inside your login
 # session, so they can launch apps into your desktop. A daemon runs before

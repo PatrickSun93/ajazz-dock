@@ -1,12 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/peido/ajazz-dock/settings.schema.json",
+  "$id": "https://github.com/PatrickSun93/ajazz-dock/settings.schema.json",
   "title": "Ajazz AKP153E dock settings",
-  "description": "Per-key icon and action bindings for the 15-key dock.",
+  "description": "Per-key icon and action bindings for the 15-key dock, plus the status strip and the child lock. settings.macos.json and settings.windows.json share this shape; only the action targets differ.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "$schema": { "type": "string" },
+    "$schema": {
+      "type": "string"
+    },
     "brightness": {
       "type": "integer",
       "minimum": 0,
@@ -32,9 +34,19 @@
             "type": "string",
             "description": "Page name — usable as a `page` action target."
           },
-          "keys": { "$ref": "#/definitions/KeyMap" }
+          "keys": {
+            "$ref": "#/definitions/KeyMap"
+          }
         }
       }
+    },
+    "lock": {
+      "$ref": "#/definitions/LockConfig",
+      "description": "Child lock. Omit it, or leave `code` empty, to disable."
+    },
+    "status": {
+      "$ref": "#/definitions/StatusConfig",
+      "description": "The three-tile strip above the keys (slots 16-18). Display only -- it reports no presses."
     }
   },
   "definitions": {
@@ -45,7 +57,9 @@
         "pattern": "^([1-9]|1[0-5])$",
         "description": "Key id 1..15"
       },
-      "additionalProperties": { "$ref": "#/definitions/Binding" }
+      "additionalProperties": {
+        "$ref": "#/definitions/Binding"
+      }
     },
     "Binding": {
       "type": "object",
@@ -55,41 +69,75 @@
           "type": "string",
           "description": "Path to PNG/JPG. Auto-resized to 95x95 and rotated 90°."
         },
-        "action": { "$ref": "#/definitions/Action" }
+        "action": {
+          "$ref": "#/definitions/Action"
+        }
       }
     },
     "Action": {
       "oneOf": [
-        { "$ref": "#/definitions/ActionUrl" },
-        { "$ref": "#/definitions/ActionApp" },
-        { "$ref": "#/definitions/ActionKeys" },
-        { "$ref": "#/definitions/ActionText" },
-        { "$ref": "#/definitions/ActionShell" },
-        { "$ref": "#/definitions/ActionMacro" },
-        { "$ref": "#/definitions/ActionPage" }
+        {
+          "$ref": "#/definitions/ActionUrl"
+        },
+        {
+          "$ref": "#/definitions/ActionApp"
+        },
+        {
+          "$ref": "#/definitions/ActionKeys"
+        },
+        {
+          "$ref": "#/definitions/ActionText"
+        },
+        {
+          "$ref": "#/definitions/ActionShell"
+        },
+        {
+          "$ref": "#/definitions/ActionMacro"
+        },
+        {
+          "$ref": "#/definitions/ActionPage"
+        },
+        {
+          "$ref": "#/definitions/ActionLock"
+        }
       ]
     },
     "ActionPage": {
       "type": "object",
-      "required": ["type", "target"],
+      "required": [
+        "type",
+        "target"
+      ],
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "page" },
+        "type": {
+          "const": "page"
+        },
         "target": {
           "description": "Page to switch to: \"next\"/\"prev\" (wrap around), a page name, or a 0-based index.",
           "oneOf": [
-            { "type": "string" },
-            { "type": "integer", "minimum": 0 }
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
           ]
         }
       }
     },
     "ActionUrl": {
       "type": "object",
-      "required": ["type", "target"],
+      "required": [
+        "type",
+        "target"
+      ],
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "url" },
+        "type": {
+          "const": "url"
+        },
         "target": {
           "type": "string",
           "format": "uri",
@@ -99,27 +147,39 @@
     },
     "ActionApp": {
       "type": "object",
-      "required": ["type", "target"],
+      "required": [
+        "type",
+        "target"
+      ],
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "app" },
+        "type": {
+          "const": "app"
+        },
         "target": {
           "type": "string",
           "description": "Full path to an executable, or its name if on PATH."
         },
         "args": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Extra command-line arguments."
         }
       }
     },
     "ActionKeys": {
       "type": "object",
-      "required": ["type", "target"],
+      "required": [
+        "type",
+        "target"
+      ],
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "keys" },
+        "type": {
+          "const": "keys"
+        },
         "target": {
           "type": "string",
           "description": "Hotkey combo, e.g. 'ctrl+shift+f' or 'win+l'."
@@ -128,10 +188,15 @@
     },
     "ActionText": {
       "type": "object",
-      "required": ["type", "target"],
+      "required": [
+        "type",
+        "target"
+      ],
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "text" },
+        "type": {
+          "const": "text"
+        },
         "target": {
           "type": "string",
           "description": "Literal text to type at the cursor."
@@ -140,10 +205,15 @@
     },
     "ActionShell": {
       "type": "object",
-      "required": ["type", "target"],
+      "required": [
+        "type",
+        "target"
+      ],
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "shell" },
+        "type": {
+          "const": "shell"
+        },
         "target": {
           "type": "string",
           "description": "Shell command line (runs via cmd.exe on Windows)."
@@ -152,10 +222,15 @@
     },
     "ActionMacro": {
       "type": "object",
-      "required": ["type", "steps"],
+      "required": [
+        "type",
+        "steps"
+      ],
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "macro" },
+        "type": {
+          "const": "macro"
+        },
         "steps": {
           "type": "array",
           "description": "Sequence of steps. Each step is either a regular action or {delay: seconds}.",
@@ -163,21 +238,192 @@
             "oneOf": [
               {
                 "type": "object",
-                "required": ["delay"],
+                "required": [
+                  "delay"
+                ],
                 "additionalProperties": false,
                 "properties": {
-                  "delay": { "type": "number", "minimum": 0 }
+                  "delay": {
+                    "type": "number",
+                    "minimum": 0
+                  }
                 }
               },
-              { "$ref": "#/definitions/ActionUrl" },
-              { "$ref": "#/definitions/ActionApp" },
-              { "$ref": "#/definitions/ActionKeys" },
-              { "$ref": "#/definitions/ActionText" },
-              { "$ref": "#/definitions/ActionShell" }
+              {
+                "$ref": "#/definitions/ActionUrl"
+              },
+              {
+                "$ref": "#/definitions/ActionApp"
+              },
+              {
+                "$ref": "#/definitions/ActionKeys"
+              },
+              {
+                "$ref": "#/definitions/ActionText"
+              },
+              {
+                "$ref": "#/definitions/ActionShell"
+              }
             ]
           }
         }
       }
+    },
+    "LockConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Locked, every tile shows the same icon and presses only feed the unlock sequence. The device reports presses but never releases, so a sequence is the only gesture this hardware can tell apart from a long press.",
+      "properties": {
+        "code": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 15
+          },
+          "description": "Unlock sequence, as key ids. Matched with a sliding window, so stray presses before it do not spoil the attempt. Empty or absent disables the lock."
+        },
+        "image": {
+          "type": "string",
+          "description": "Tile shown on every locked key. Default icons/locked.png."
+        },
+        "idle_minutes": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Auto-lock after this long without a press. 0 disables auto-lock."
+        },
+        "start_locked": {
+          "type": "boolean",
+          "description": "Come up locked at launch."
+        },
+        "hint": {
+          "type": "boolean",
+          "description": "Number the keys in the unlock sequence on the lock screen. Default true: the usual failure is the adult not getting back in."
+        },
+        "hint_image": {
+          "type": "string",
+          "description": "printf-style template for the numbered tiles, e.g. icons/lock_%d.png."
+        }
+      }
+    },
+    "StatusConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "refresh": {
+          "type": "integer",
+          "minimum": 5,
+          "description": "Seconds between refreshes. Clamped to at least 5."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Output-token denominator for the 5h estimate. Only used when the statusline hook is absent -- with the hook the real figure is read instead."
+        },
+        "week_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Output-token denominator for the weekly estimate. Same caveat as `limit`."
+        },
+        "week_anchor": {
+          "type": "string",
+          "description": "One observed weekly reset, ISO 8601. The cycle rolls forward from it, so a past value stays correct."
+        },
+        "slots": {
+          "$ref": "#/definitions/StatusSlots"
+        }
+      }
+    },
+    "StatusSlots": {
+      "type": "object",
+      "description": "Map of strip slot (16 top, 17 middle, 18 bottom) to tile.",
+      "propertyNames": {
+        "pattern": "^1[678]$",
+        "description": "Status slot 16..18"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/StatusSlot"
+      }
+    },
+    "StatusSlot": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "claude_pct",
+            "claude_reset",
+            "claude_week_pct",
+            "claude_week_reset",
+            "claude_usage",
+            "page",
+            "clock"
+          ],
+          "description": "What the tile reports."
+        },
+        "label": {
+          "type": "string",
+          "description": "Band caption. Each type has a sensible default."
+        },
+        "sub": {
+          "type": "string",
+          "description": "Footnote under the number. Defaults to the reset time or a token count."
+        },
+        "accent": {
+          "description": "Band colour: \"#1F7A8C\" or [31, 122, 140]. Percentage tiles colour themselves by band unless this is set.",
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^#?[0-9a-fA-F]{6}$"
+            },
+            {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            }
+          ]
+        },
+        "window": {
+          "enum": [
+            "5h",
+            "today",
+            "7d",
+            "week"
+          ],
+          "description": "claude_usage only: which bucket to total."
+        },
+        "metric": {
+          "enum": [
+            "in",
+            "out",
+            "cache_w",
+            "cache_r",
+            "msgs"
+          ],
+          "description": "claude_usage only: which figure from the bucket. Default out."
+        }
+      }
+    },
+    "ActionLock": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "lock"
+        }
+      },
+      "description": "Engage the child lock now. Does nothing if `lock.code` is unset."
     }
   }
 }

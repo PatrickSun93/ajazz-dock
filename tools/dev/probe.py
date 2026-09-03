@@ -2,9 +2,9 @@
 Ajazz Stream Dock AKP53E probe.
 
 Usage:
-    python probe.py list                      # list all HID devices, highlight likely candidates
-    python probe.py listen <vid> <pid>        # open device and dump raw input reports
-    python probe.py listen <vid> <pid> <path> # disambiguate when multiple interfaces share VID/PID
+    python tools/dev/probe.py list                      # list all HID devices, highlight likely candidates
+    python tools/dev/probe.py listen <vid> <pid>        # open device and dump raw input reports
+    python tools/dev/probe.py listen <vid> <pid> <path> # disambiguate when multiple interfaces share VID/PID
 
 VID/PID accept hex (0x0300) or decimal. `path` is the bytes string from `list` output.
 """
@@ -55,12 +55,12 @@ def cmd_list() -> None:
         first = candidates[0]
         print(
             f"Likely Ajazz: VID=0x{first['vendor_id']:04x} PID=0x{first['product_id']:04x}\n"
-            f"Next: python probe.py listen 0x{first['vendor_id']:04x} 0x{first['product_id']:04x}"
+            f"Next: python tools/dev/probe.py listen 0x{first['vendor_id']:04x} 0x{first['product_id']:04x}"
         )
     else:
         print(
             "No obvious Ajazz match by name. Pick the candidate whose product/mfr looks right "
-            "and run: python probe.py listen <vid> <pid>"
+            "and run: python tools/dev/probe.py listen <vid> <pid>"
         )
 
 
@@ -140,7 +140,7 @@ def main(argv: list[str]) -> int:
         return 0
     if cmd == "listen":
         if len(argv) < 4:
-            print("usage: python probe.py listen <vid> <pid> [path]")
+            print("usage: python tools/dev/probe.py listen <vid> <pid> [path]")
             return 1
         vid = parse_id(argv[2])
         pid = parse_id(argv[3])

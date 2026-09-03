@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Extract app icons from macOS apps into icons/. The macOS counterpart of
-tools/extract_icons.ps1.
+tools/extract_icons_windows.ps1.
 
     ./.venv/bin/python tools/extract_icons_macos.py            # everything below
     ./.venv/bin/python tools/extract_icons_macos.py chrome zed # only these

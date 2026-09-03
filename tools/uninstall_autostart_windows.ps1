@@ -1,7 +1,7 @@
-# Remove the ajazz-dock logon entry created by install_autostart.ps1.
+# Remove the ajazz-dock logon entry created by install_autostart_windows.ps1.
 #
 # Usage:
-#   powershell -ExecutionPolicy Bypass -File tools\uninstall_autostart.ps1
+#   powershell -ExecutionPolicy Bypass -File tools\uninstall_autostart_windows.ps1
 
 $vbsPath = Join-Path ([Environment]::GetFolderPath('Startup')) "ajazz-dock.vbs"
 

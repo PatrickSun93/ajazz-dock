@@ -52,7 +52,7 @@ IMAGE_ROTATE = int(os.environ.get("DOCK_IMAGE_ROTATE", "90"))  # 0/90/180/270
 
 _CRT = b"CRT\x00\x00"
 # mirajazz only checks the first 3 bytes ("ACK") of input frames. We saw the
-# full prefix as `ACK\0\0OK\0\0<key>` in probe.py, but bytes 3..8 may vary
+# full prefix as `ACK\0\0OK\0\0<key>` in tools/dev/probe.py, but bytes 3..8 may vary
 # after the device receives output commands, so we keep the loose check.
 _INPUT_PREFIX = b"ACK"
 
